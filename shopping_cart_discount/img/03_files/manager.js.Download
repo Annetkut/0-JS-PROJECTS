@@ -1,0 +1,209 @@
+/*
+** ManagerJS
+** v0.2.9
+*/
+
+var getCookie = function(cookieName) {
+	var name = cookieName + '=',
+		decode = decodeURIComponent(document.cookie),
+		cookies = decode.split(';');
+	for (var index = 0; index <cookies.length; index++) {
+		var val = cookies[index];
+		while (val.charAt(0) == ' ') {
+			val = val.substring(1);
+		}
+		if (val.indexOf(name) == 0) {
+			return val.substring(name.length, val.length);
+		}
+	}
+	return '';
+};
+
+if (document.location.search === "?il") {
+	document.location.href = "https://www.reserved.com/re/en";
+	//document.location.href = "https://reserved-il.com/?utm_source=Website&utm_medium=Referal&utm_campaign=Reserved.com";
+}
+
+(function(){
+
+    'use strict';
+
+	var eco = document.querySelector('li.header-7 a.department-link[href$="#"]');
+	if (eco) {
+		eco.parentNode.classList.add('eco-aware');
+	
+		var inner = eco.parentNode.querySelector('.inner ul');
+		var leftColumn = document.createElement('div');
+		var rightColumn = document.createElement('div');
+
+		inner.querySelectorAll('li.header-default').forEach(function(n){
+			leftColumn.appendChild(n);
+		});
+
+		inner.querySelectorAll('li.header-7').forEach(function(n){
+			rightColumn.appendChild(n);
+		});
+
+		inner.appendChild(leftColumn);
+		inner.appendChild(rightColumn);
+	};
+	
+	var getCookie = function(cookieName) {
+        var name = cookieName + '=',
+            decode = decodeURIComponent(document.cookie),
+            cookies = decode.split(';');
+        for (var index = 0; index <cookies.length; index++) {
+            var val = cookies[index];
+            while (val.charAt(0) == ' ') {
+                val = val.substring(1);
+            }
+            if (val.indexOf(name) == 0) {
+                return val.substring(name.length, val.length);
+            }
+        }
+        return '';
+    },
+		setCookie = function(cookieName, cookieValue, exdays) {
+            var d = new Date(),
+				exdays = exdays || 90;
+            d.setTime(d.getTime() + (exdays * 24 * 60 * 60 * 1000));
+            var expires = "expires=" + d.toUTCString();
+			document.cookie = cookieName + "=" + cookieValue + ";" + expires + ";path=/;secure";
+        };
+
+	var head = document.getElementsByTagName('head')[0],
+		css = document.createElement('link');
+
+	//import CSS
+	css = document.createElement('link');
+	css.rel = 'stylesheet';
+	css.href = '//www.reserved.com/special/manager/style.css?76';
+	head.appendChild(css);
+	
+})();
+
+
+(function(){
+
+    'use strict'
+	
+	/* navbar-fix for nettops, prod will be fixed in NA navbar { */
+	var header = document.querySelector('header.main-header');
+	if (!header) return;
+
+	function checkNavbar(){
+		var headerHeight = header.offsetHeight;
+		if (headerHeight > 62) {
+			document.body.classList.add('nav-low-res');
+		} else {
+			document.body.classList.remove('nav-low-res');
+		}	
+	}
+
+	document.addEventListener('DOMContentLoaded', checkNavbar);
+	document.addEventListener('readystatechange', checkNavbar);
+	checkNavbar();
+	setTimeout(checkNavbar, 1000);
+	/* } navbar-fix */
+})();
+
+
+var addVat = function(){
+	setTimeout(addVat, 250);
+	var pw = document.getElementsByClassName('price-wrapper');
+	if (pw.length > 0) {
+		if (document.getElementById('price-incl-vat')) return;
+		var vat = document.createElement('span');
+		vat.id = 'price-incl-vat';
+		vat.style.fontSize = '12px';
+		vat.style.color = '#797475';
+		vat.innerHTML = ' INKL. MWST.';
+		pw[0].appendChild(vat);	
+	}
+}
+var lang = document.location.href.match(".[com|pl]/([a-z\/]{5})/")[1];
+if (lang=="de/de" && typeof(document.body.dataset["address"])!=="undefined" && document.body.dataset["address"].indexOf('product')==1) addVat();
+
+
+
+//sizetable test
+(function(){
+	var lang = document.location.href.match(".[com|pl]/([a-z\/]{5})/")[1];
+	if (lang !== "ru/ru") return;
+	
+	document.body.classList.add("sizetest");
+
+})();
+
+
+// headerBar
+(function(){
+	return false;
+
+if (window.outerWidth > 960) return;
+
+var lang = document.location.href.match(".[com|pl]/([a-z\/]{5})/")[1];
+if (document.location.search.indexOf('noinfobar') > -1 ) return;
+
+var T = {
+	"pl/pl": {
+		"phrase": "-20% na nową kolekcję dla zamówień powyżej 200&nbsp;zł z&nbsp;kodem&nbsp;JESIEN20"
+	},
+	"de/de": {
+		"phrase": "-20% auf Bestellungen aus der neuen Kollektion über 65&nbsp;Euro rabattcode:&nbsp;AUTUMN20DE"
+	},
+	"cz/cz": {
+		"phrase": "-20% na novou kolekci na objednávky v hodnotě nad 1500&nbsp;Kč s&nbsp;kódem:&nbsp;PODZIM20"
+	},
+	"sk/sk": {
+		"phrase": "-20% na produkty z novej kolekcie pri objednávke nad&nbsp;45&nbsp;€&nbsp;! Heslo:&nbsp;AUTUMN20"
+	},
+	"ro/ro": {
+		"phrase": "-20% la noua colecție - pentru comenzi de peste 200&nbsp;lei cods&nbsp;AUTUMN20RO"
+	},
+	"hu/hu": {
+		"phrase": "20% kedvezmény az új kollekcióra és az 16000&nbsp;HUF feletti megrendelések esetén kód:&nbsp;AUTUMN20HU"
+	}
+};
+
+if (typeof(T[lang])==="undefined" || typeof(T[lang]['phrase']) !== 'string') return;
+if (document.location.href.indexOf('checkout') > 1) return;
+
+var infoBar = document.createElement('div');
+infoBar.setAttribute('id', 'headerBar');
+infoBar.setAttribute('class', 'code');
+//infoBar.innerHTML = '<div class="barContainer">'+T[lang].phrase +
+//'<a href="'+T[lang].link+'" class="barLink">'+ T[lang].button +'</a></div>';
+
+infoBar.innerHTML = '<div class="barContainer">'+T[lang].phrase+'</div>';
+
+var parent = document.getElementById('pageHeader');
+parent.style.position = "relative";
+
+parent.classList.add("infoBarActive");
+
+parent.insertAdjacentElement('beforeend', infoBar);
+
+document.body.classList.add('headerBar');
+
+})();
+
+//Curalate
+(function(){
+	/*
+	if (document.location.pathname=="/pl/pl/woman") {
+	  var div = document.createElement('div');
+	  div.dataset.crl8ContainerId = "category";
+	  var target = document.querySelector('div.home-container .new-slider')
+	  target.parentNode.insertBefore(div, target.nextSibling);	
+	}
+	*/
+	
+	if (document.location.pathname=="/pl/pl/woman-inspirations") {
+	  var div = document.createElement('div');
+	  div.dataset.crl8ContainerId = "gallery-UkLsvJo1";
+	  var target = document.getElementById('product-settings-container');
+	  target.appendChild( div );	
+	  target.insertAdjacentHTML( 'beforeend', '<img src="/special/manager/loader.svg" id="crl8-loader">');
+	}
+})();

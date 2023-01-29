@@ -1,0 +1,30 @@
+if (!window.getTranslations) {
+    var translations;
+
+    translations = Object.assign({},
+        window.global.i18n,
+        window.global.i19f,
+        window.global.i20df,
+        window.global.i21v,
+        window.global.i22o
+    );
+
+    window.getTranslations = function() {
+        return translations;
+    }
+}
+
+if (!window.getConfig) {
+    var conf;
+
+    conf = Object.assign({}, window.global);
+    conf.i18n && delete conf.i18n;
+    conf.i19f && delete conf.i19f;
+    conf.i20df && delete conf.i20df;
+    conf.i21v && delete conf.i21v;
+    conf.i22o && delete conf.i22o;
+
+    window.getConfig = function() {
+        return conf;
+    }
+}

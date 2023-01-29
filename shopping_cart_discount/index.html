@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="index.css">
+    <link rel="stylesheet" href="normalize.css">
+</head>
+
+<body>
+    <div class="wrapper">
+        <div class="shopping-cart"></div>
+        <h1>Корзина</h1>
+        <div class="shopping-cart__item">
+            <div class="item__info"><img class="img"
+                    src="https://static.reserved.com/media/catalog/product/3/1/3199T-MLC-001-1-595291_1.jpg" alt="">
+                <div class="info"> <span class="info__name">RESERVED платье</span><br>
+                    Цвет: цветное<br>
+                    Размер: М<br>
+                    Колличество: 1<br>
+                </div>
+            </div>
+
+            <div class="price">5900.00</div>
+        </div>
+        <div class="shopping-cart__item">
+            <div class="item__info"><img class="img"
+                    src="https://static.reserved.com/media/catalog/product/1/1/1105R-02X-010-1-611435.jpg" alt="">
+                <div class="info"><span class="info__name">RESERVED носки женские 5 пар</span><br>
+                    Цвет: бежевый<br>
+                    Размер: 36-40<br>
+                    Колличество: 1<br></div>
+            </div>
+            <div class="price">1090.00</div>
+        </div>
+        <div class="shopping-cart__item">
+            <div class="item__info"><img class="img"
+                    src="https://static.reserved.com/media/catalog/product/4/7/4774U-01X-010-1-599259.jpg" alt="">
+                <div class="info"><span class="info__name">RESERVED носки женские 2 пары</span><br>
+                    Цвет: кремовый<br>
+                    Размер: 36-40<br>
+                    Колличество: 1<br>
+                </div>
+            </div>
+            <div class="price">599.00</div>
+        </div>
+        <div class=" shopping-cart__item">
+            <div class="item__info"><img class="img"
+                    src="https://static.reserved.com/media/catalog/product/5/8/5820S-82X-010-1-593027_2.jpg" alt="">
+                <div class="info"><span class="info__name">RESERVED сумка женская</span><br>
+                    Цвет: коричневый<br>
+                    Размер: нет<br>
+                    Колличество: 1<br></div>
+            </div>
+            <div class="price">3900.00</div>
+        </div>
+
+        <div class=" shopping-cart__calc">
+
+            <button onclick="applyDiscount();" class="btn" id="cupon">Использовать купон на 20%</button>
+            <div class="result__info">
+                <div class="result__info_text">Итого:</div>
+                <span class="result__info_value"></span>
+            </div>
+        </div>
+    </div>
+    </div>
+    <script src="index.js"></script>
+</body>
+
+</html>

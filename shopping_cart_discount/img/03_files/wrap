@@ -1,0 +1,41 @@
+/* TD Cookie fallback */
+if  (mytduid && mytduid!='') { 
+setCookie('TRADEDOUBLER', mytduid, 365, '/', '.reserved.com');
+}
+
+/* Deduplication script */
+function getParameterByName(name) {
+  var match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+  return match && decodeURIComponent(match[1].replace(/\+/g, ' '));
+}
+(function () {
+  var us = getParameterByName('utm_source');
+  var um = getParameterByName('utm_medium');
+  var gclid = getParameterByName('gclid');
+  var b = getParameterByName('b');
+  if (us || um || gclid) {
+    us = us ? us.toLowerCase() : null;
+    um = um ? um.toLowerCase() : null;
+    var a = false;
+    if (us === 'facebook') {
+      a = 2906822;
+    } else if (us === 'ceneo.pl' || us === 'm.ceneo.pl' || us === 'domodi.pl' || us === 'allani.pl' || us === 'picodi.com') {
+      a = 2906824;
+    } else if (um === 'email') {
+      a = 2906818;
+    } else if (gclid && gclid.length > 0 && b !== '1') {
+      a = 2906823;
+    }
+    if (a) {
+      var p = document.createElement('img');
+      p.src = 'https://clk.tradedoubler.com/click?p=276487&a='+a+'&g=23628652&f=0';
+      p.width = 0;
+      p.height = 0;
+      p.style.display = "none";
+      p.style.visibility = "hidden";
+      document.body.appendChild(p);
+    }
+  }
+})();
+
+   

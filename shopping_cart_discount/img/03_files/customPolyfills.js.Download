@@ -1,0 +1,36 @@
+if (!NodeList.prototype.forEach) {
+  NodeList.prototype.forEach = forEachPolyfill;
+}
+
+if (!HTMLCollection.prototype.forEach) {
+  HTMLCollection.prototype.forEach = forEachPolyfill;
+}
+
+function forEachPolyfill(callback) {
+  var numberOfElements = this.length,
+    itemPosition;
+
+  for (itemPosition = 0; itemPosition < numberOfElements; itemPosition++) {
+    callback(this.item(itemPosition));
+  }
+}
+
+if (!Array.isArray) {
+  Array.isArray = function(arg) {
+    return Object.prototype.toString.call(arg) === '[object Array]';
+  };
+}
+
+(function(){
+    function toArray() {
+        return Array.prototype.slice.call(this, 0);
+    }
+
+    if (!NodeList.prototype.toArray) {
+        NodeList.prototype.toArray = toArray;
+    }
+
+    if (!HTMLCollection.prototype.toArray) {
+        HTMLCollection.prototype.toArray = toArray;
+    }
+})();

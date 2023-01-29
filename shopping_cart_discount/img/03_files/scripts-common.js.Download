@@ -1,0 +1,2662 @@
+LPP.common.breakpoints = {
+  screenXsMin: 320,
+  screenSmMin: 480,
+  screenMdMin: 768,
+  screenLgMin: 992,
+  screenXlMin: 1200,
+};
+
+/**
+ *
+ * @param {String|Number} breakPoint
+ * @param {Boolean} isNumberValue
+ */
+LPP.common.isScreenSizeMin = function(breakPoint) {
+  var possibleBreakPoints = ['Xs', 'Sm', 'Md', 'Lg', 'Xl'];
+
+  if (!isNaN(breakPoint)) {
+    return window.matchMedia('(min-width: ' + breakPoint + 'px)').matches;
+  }
+
+  if (possibleBreakPoints.indexOf(breakPoint) !== -1) {
+    return window.matchMedia('(min-width: ' + LPP.common.breakpoints['screen' + breakPoint + 'Min'] + 'px)').matches;
+  }
+};
+
+LPP.common.keyCode = {
+  enter: 13,
+};
+
+LPP.common.key = {
+  DELETE: 'Delete',
+  BACKSPACE: 'Backspace',
+  SPACE: ' ',
+  ESC: 'Escape',
+  LEFT: 'ArrowLeft',
+  RIGHT: 'ArrowRight',
+};
+
+// https://github.com/taylorhakes/promise-polyfill
+
+(function(root) {
+  // Store setTimeout reference so promise-polyfill will be unaffected by
+  // other code modifying setTimeout (like sinon.useFakeTimers())
+  var setTimeoutFunc = setTimeout;
+
+  function noop() {}
+
+  // Polyfill for Function.prototype.bind
+  function bind(fn, thisArg) {
+    return function() {
+      fn.apply(thisArg, arguments);
+    };
+  }
+
+  function Promise(fn) {
+    if (typeof this !== 'object') throw new TypeError('Promises must be constructed via new');
+    if (typeof fn !== 'function') throw new TypeError('not a function');
+    this._state = 0;
+    this._handled = false;
+    this._value = undefined;
+    this._deferreds = [];
+
+    doResolve(fn, this);
+  }
+
+  function handle(self, deferred) {
+    while (self._state === 3) {
+      self = self._value;
+    }
+    if (self._state === 0) {
+      self._deferreds.push(deferred);
+      return;
+    }
+    self._handled = true;
+    Promise._immediateFn(function() {
+      var cb = self._state === 1 ? deferred.onFulfilled : deferred.onRejected;
+      if (cb === null) {
+        (self._state === 1 ? resolve : reject)(deferred.promise, self._value);
+        return;
+      }
+      var ret;
+      try {
+        ret = cb(self._value);
+      } catch (e) {
+        reject(deferred.promise, e);
+        return;
+      }
+      resolve(deferred.promise, ret);
+    });
+  }
+
+  function resolve(self, newValue) {
+    try {
+      // Promise Resolution Procedure: https://github.com/promises-aplus/promises-spec#the-promise-resolution-procedure
+      if (newValue === self) throw new TypeError('A promise cannot be resolved with itself.');
+      if (newValue && (typeof newValue === 'object' || typeof newValue === 'function')) {
+        var then = newValue.then;
+        if (newValue instanceof Promise) {
+          self._state = 3;
+          self._value = newValue;
+          finale(self);
+          return;
+        } else if (typeof then === 'function') {
+          doResolve(bind(then, newValue), self);
+          return;
+        }
+      }
+      self._state = 1;
+      self._value = newValue;
+      finale(self);
+    } catch (e) {
+      reject(self, e);
+    }
+  }
+
+  function reject(self, newValue) {
+    self._state = 2;
+    self._value = newValue;
+    finale(self);
+  }
+
+  function finale(self) {
+    if (self._state === 2 && self._deferreds.length === 0) {
+      Promise._immediateFn(function() {
+        if (!self._handled) {
+          Promise._unhandledRejectionFn(self._value);
+        }
+      });
+    }
+
+    for (var i = 0, len = self._deferreds.length; i < len; i++) {
+      handle(self, self._deferreds[i]);
+    }
+    self._deferreds = null;
+  }
+
+  function Handler(onFulfilled, onRejected, promise) {
+    this.onFulfilled = typeof onFulfilled === 'function' ? onFulfilled : null;
+    this.onRejected = typeof onRejected === 'function' ? onRejected : null;
+    this.promise = promise;
+  }
+
+  /**
+   * Take a potentially misbehaving resolver function and make sure
+   * onFulfilled and onRejected are only called once.
+   *
+   * Makes no guarantees about asynchrony.
+   */
+  function doResolve(fn, self) {
+    var done = false;
+    try {
+      fn(
+        function(value) {
+          if (done) return;
+          done = true;
+          resolve(self, value);
+        },
+        function(reason) {
+          if (done) return;
+          done = true;
+          reject(self, reason);
+        }
+      );
+    } catch (ex) {
+      if (done) return;
+      done = true;
+      reject(self, ex);
+    }
+  }
+
+  Promise.prototype['catch'] = function(onRejected) {
+    return this.then(null, onRejected);
+  };
+
+  Promise.prototype.then = function(onFulfilled, onRejected) {
+    var prom = new this.constructor(noop);
+
+    handle(this, new Handler(onFulfilled, onRejected, prom));
+    return prom;
+  };
+
+  Promise.all = function(arr) {
+    var args = Array.prototype.slice.call(arr);
+
+    return new Promise(function(resolve, reject) {
+      if (args.length === 0) return resolve([]);
+      var remaining = args.length;
+
+      function res(i, val) {
+        try {
+          if (val && (typeof val === 'object' || typeof val === 'function')) {
+            var then = val.then;
+            if (typeof then === 'function') {
+              then.call(
+                val,
+                function(val) {
+                  res(i, val);
+                },
+                reject
+              );
+              return;
+            }
+          }
+          args[i] = val;
+          if (--remaining === 0) {
+            resolve(args);
+          }
+        } catch (ex) {
+          reject(ex);
+        }
+      }
+
+      for (var i = 0; i < args.length; i++) {
+        res(i, args[i]);
+      }
+    });
+  };
+
+  Promise.resolve = function(value) {
+    if (value && typeof value === 'object' && value.constructor === Promise) {
+      return value;
+    }
+
+    return new Promise(function(resolve) {
+      resolve(value);
+    });
+  };
+
+  Promise.reject = function(value) {
+    return new Promise(function(resolve, reject) {
+      reject(value);
+    });
+  };
+
+  Promise.race = function(values) {
+    return new Promise(function(resolve, reject) {
+      for (var i = 0, len = values.length; i < len; i++) {
+        values[i].then(resolve, reject);
+      }
+    });
+  };
+
+  // Use polyfill for setImmediate for performance gains
+  Promise._immediateFn =
+    (typeof setImmediate === 'function' &&
+      function(fn) {
+        setImmediate(fn);
+      }) ||
+    function(fn) {
+      setTimeoutFunc(fn, 0);
+    };
+
+  Promise._unhandledRejectionFn = function _unhandledRejectionFn(err) {
+    if (typeof console !== 'undefined' && console) {
+      console.warn('Possible Unhandled Promise Rejection:', err); // eslint-disable-line no-console
+    }
+  };
+
+  /**
+   * Set the immediate function to execute callbacks
+   * @param fn {function} Function to execute
+   * @deprecated
+   */
+  Promise._setImmediateFn = function _setImmediateFn(fn) {
+    Promise._immediateFn = fn;
+  };
+
+  /**
+   * Change the function to execute on unhandled rejection
+   * @param {function} fn Function to execute on unhandled rejection
+   * @deprecated
+   */
+  Promise._setUnhandledRejectionFn = function _setUnhandledRejectionFn(fn) {
+    Promise._unhandledRejectionFn = fn;
+  };
+
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = Promise;
+  } else if (!root.Promise) {
+    root.Promise = Promise;
+  }
+})(this);
+
+// https://github.com/github/fetch
+
+(function(self) {
+  'use strict';
+
+  if (self.fetch) {
+    return;
+  }
+
+  var support = {
+    searchParams: 'URLSearchParams' in self,
+    iterable: 'Symbol' in self && 'iterator' in Symbol,
+    blob:
+      'FileReader' in self &&
+      'Blob' in self &&
+      (function() {
+        try {
+          new Blob();
+          return true;
+        } catch (e) {
+          return false;
+        }
+      })(),
+    formData: 'FormData' in self,
+    arrayBuffer: 'ArrayBuffer' in self,
+  };
+
+  if (support.arrayBuffer) {
+    var viewClasses = [
+      '[object Int8Array]',
+      '[object Uint8Array]',
+      '[object Uint8ClampedArray]',
+      '[object Int16Array]',
+      '[object Uint16Array]',
+      '[object Int32Array]',
+      '[object Uint32Array]',
+      '[object Float32Array]',
+      '[object Float64Array]',
+    ];
+
+    var isDataView = function(obj) {
+      return obj && DataView.prototype.isPrototypeOf(obj);
+    };
+
+    var isArrayBufferView =
+      ArrayBuffer.isView ||
+      function(obj) {
+        return obj && viewClasses.indexOf(Object.prototype.toString.call(obj)) > -1;
+      };
+  }
+
+  function normalizeName(name) {
+    if (typeof name !== 'string') {
+      name = String(name);
+    }
+    if (/[^a-z0-9\-#$%&'*+.\^_`|~]/i.test(name)) {
+      throw new TypeError('Invalid character in header field name');
+    }
+    return name.toLowerCase();
+  }
+
+  function normalizeValue(value) {
+    if (typeof value !== 'string') {
+      value = String(value);
+    }
+    return value;
+  }
+
+  // Build a destructive iterator for the value list
+  function iteratorFor(items) {
+    var iterator = {
+      next: function() {
+        var value = items.shift();
+        return { done: value === undefined, value: value };
+      },
+    };
+
+    if (support.iterable) {
+      iterator[Symbol.iterator] = function() {
+        return iterator;
+      };
+    }
+
+    return iterator;
+  }
+
+  function Headers(headers) {
+    this.map = {};
+
+    if (headers instanceof Headers) {
+      headers.forEach(function(value, name) {
+        this.append(name, value);
+      }, this);
+    } else if (Array.isArray(headers)) {
+      headers.forEach(function(header) {
+        this.append(header[0], header[1]);
+      }, this);
+    } else if (headers) {
+      Object.getOwnPropertyNames(headers).forEach(function(name) {
+        this.append(name, headers[name]);
+      }, this);
+    }
+  }
+
+  Headers.prototype.append = function(name, value) {
+    name = normalizeName(name);
+    value = normalizeValue(value);
+    var oldValue = this.map[name];
+    this.map[name] = oldValue ? oldValue + ',' + value : value;
+  };
+
+  Headers.prototype['delete'] = function(name) {
+    delete this.map[normalizeName(name)];
+  };
+
+  Headers.prototype.get = function(name) {
+    name = normalizeName(name);
+    return this.has(name) ? this.map[name] : null;
+  };
+
+  Headers.prototype.has = function(name) {
+    return this.map.hasOwnProperty(normalizeName(name));
+  };
+
+  Headers.prototype.set = function(name, value) {
+    this.map[normalizeName(name)] = normalizeValue(value);
+  };
+
+  Headers.prototype.forEach = function(callback, thisArg) {
+    for (var name in this.map) {
+      if (this.map.hasOwnProperty(name)) {
+        callback.call(thisArg, this.map[name], name, this);
+      }
+    }
+  };
+
+  Headers.prototype.keys = function() {
+    var items = [];
+    this.forEach(function(value, name) {
+      items.push(name);
+    });
+    return iteratorFor(items);
+  };
+
+  Headers.prototype.values = function() {
+    var items = [];
+    this.forEach(function(value) {
+      items.push(value);
+    });
+    return iteratorFor(items);
+  };
+
+  Headers.prototype.entries = function() {
+    var items = [];
+    this.forEach(function(value, name) {
+      items.push([name, value]);
+    });
+    return iteratorFor(items);
+  };
+
+  if (support.iterable) {
+    Headers.prototype[Symbol.iterator] = Headers.prototype.entries;
+  }
+
+  function consumed(body) {
+    if (body.bodyUsed) {
+      return Promise.reject(new TypeError('Already read'));
+    }
+    body.bodyUsed = true;
+  }
+
+  function fileReaderReady(reader) {
+    return new Promise(function(resolve, reject) {
+      reader.onload = function() {
+        resolve(reader.result);
+      };
+      reader.onerror = function() {
+        reject(reader.error);
+      };
+    });
+  }
+
+  function readBlobAsArrayBuffer(blob) {
+    var reader = new FileReader();
+    var promise = fileReaderReady(reader);
+    reader.readAsArrayBuffer(blob);
+    return promise;
+  }
+
+  function readBlobAsText(blob) {
+    var reader = new FileReader();
+    var promise = fileReaderReady(reader);
+    reader.readAsText(blob);
+    return promise;
+  }
+
+  function readArrayBufferAsText(buf) {
+    var view = new Uint8Array(buf);
+    var chars = new Array(view.length);
+
+    for (var i = 0; i < view.length; i++) {
+      chars[i] = String.fromCharCode(view[i]);
+    }
+    return chars.join('');
+  }
+
+  function bufferClone(buf) {
+    if (buf.slice) {
+      return buf.slice(0);
+    } else {
+      var view = new Uint8Array(buf.byteLength);
+      view.set(new Uint8Array(buf));
+      return view.buffer;
+    }
+  }
+
+  function Body() {
+    this.bodyUsed = false;
+
+    this._initBody = function(body) {
+      this._bodyInit = body;
+      if (!body) {
+        this._bodyText = '';
+      } else if (typeof body === 'string') {
+        this._bodyText = body;
+      } else if (support.blob && Blob.prototype.isPrototypeOf(body)) {
+        this._bodyBlob = body;
+      } else if (support.formData && FormData.prototype.isPrototypeOf(body)) {
+        this._bodyFormData = body;
+      } else if (support.searchParams && URLSearchParams.prototype.isPrototypeOf(body)) {
+        this._bodyText = body.toString();
+      } else if (support.arrayBuffer && support.blob && isDataView(body)) {
+        this._bodyArrayBuffer = bufferClone(body.buffer);
+        // IE 10-11 can't handle a DataView body.
+        this._bodyInit = new Blob([this._bodyArrayBuffer]);
+      } else if (support.arrayBuffer && (ArrayBuffer.prototype.isPrototypeOf(body) || isArrayBufferView(body))) {
+        this._bodyArrayBuffer = bufferClone(body);
+      } else {
+        throw new Error('unsupported BodyInit type');
+      }
+
+      if (!this.headers.get('content-type')) {
+        if (typeof body === 'string') {
+          this.headers.set('content-type', 'text/plain;charset=UTF-8');
+        } else if (this._bodyBlob && this._bodyBlob.type) {
+          this.headers.set('content-type', this._bodyBlob.type);
+        } else if (support.searchParams && URLSearchParams.prototype.isPrototypeOf(body)) {
+          this.headers.set('content-type', 'application/x-www-form-urlencoded;charset=UTF-8');
+        }
+      }
+    };
+
+    if (support.blob) {
+      this.blob = function() {
+        var rejected = consumed(this);
+        if (rejected) {
+          return rejected;
+        }
+
+        if (this._bodyBlob) {
+          return Promise.resolve(this._bodyBlob);
+        } else if (this._bodyArrayBuffer) {
+          return Promise.resolve(new Blob([this._bodyArrayBuffer]));
+        } else if (this._bodyFormData) {
+          throw new Error('could not read FormData body as blob');
+        } else {
+          return Promise.resolve(new Blob([this._bodyText]));
+        }
+      };
+
+      this.arrayBuffer = function() {
+        if (this._bodyArrayBuffer) {
+          return consumed(this) || Promise.resolve(this._bodyArrayBuffer);
+        } else {
+          return this.blob().then(readBlobAsArrayBuffer);
+        }
+      };
+    }
+
+    this.text = function() {
+      var rejected = consumed(this);
+      if (rejected) {
+        return rejected;
+      }
+
+      if (this._bodyBlob) {
+        return readBlobAsText(this._bodyBlob);
+      } else if (this._bodyArrayBuffer) {
+        return Promise.resolve(readArrayBufferAsText(this._bodyArrayBuffer));
+      } else if (this._bodyFormData) {
+        throw new Error('could not read FormData body as text');
+      } else {
+        return Promise.resolve(this._bodyText);
+      }
+    };
+
+    if (support.formData) {
+      this.formData = function() {
+        return this.text().then(decode);
+      };
+    }
+
+    this.json = function() {
+      return this.text().then(JSON.parse);
+    };
+
+    return this;
+  }
+
+  // HTTP methods whose capitalization should be normalized
+  var methods = ['DELETE', 'GET', 'HEAD', 'OPTIONS', 'POST', 'PUT'];
+
+  function normalizeMethod(method) {
+    var upcased = method.toUpperCase();
+    return methods.indexOf(upcased) > -1 ? upcased : method;
+  }
+
+  function Request(input, options) {
+    options = options || {};
+    var body = options.body;
+
+    if (input instanceof Request) {
+      if (input.bodyUsed) {
+        throw new TypeError('Already read');
+      }
+      this.url = input.url;
+      this.credentials = input.credentials;
+      if (!options.headers) {
+        this.headers = new Headers(input.headers);
+      }
+      this.method = input.method;
+      this.mode = input.mode;
+      if (!body && input._bodyInit != null) {
+        body = input._bodyInit;
+        input.bodyUsed = true;
+      }
+    } else {
+      this.url = String(input);
+    }
+
+    this.credentials = options.credentials || this.credentials || 'omit';
+    if (options.headers || !this.headers) {
+      this.headers = new Headers(options.headers);
+    }
+    this.method = normalizeMethod(options.method || this.method || 'GET');
+    this.mode = options.mode || this.mode || null;
+    this.referrer = null;
+
+    if ((this.method === 'GET' || this.method === 'HEAD') && body) {
+      throw new TypeError('Body not allowed for GET or HEAD requests');
+    }
+    this._initBody(body);
+  }
+
+  Request.prototype.clone = function() {
+    return new Request(this, { body: this._bodyInit });
+  };
+
+  function decode(body) {
+    var form = new FormData();
+    body
+      .trim()
+      .split('&')
+      .forEach(function(bytes) {
+        if (bytes) {
+          var split = bytes.split('=');
+          var name = split.shift().replace(/\+/g, ' ');
+          var value = split.join('=').replace(/\+/g, ' ');
+          form.append(decodeURIComponent(name), decodeURIComponent(value));
+        }
+      });
+    return form;
+  }
+
+  function parseHeaders(rawHeaders) {
+    var headers = new Headers();
+    // Replace instances of \r\n and \n followed by at least one space or horizontal tab with a space
+    // https://tools.ietf.org/html/rfc7230#section-3.2
+    var preProcessedHeaders = rawHeaders.replace(/\r?\n[\t ]+/g, ' ');
+    preProcessedHeaders.split(/\r?\n/).forEach(function(line) {
+      var parts = line.split(':');
+      var key = parts.shift().trim();
+      if (key) {
+        var value = parts.join(':').trim();
+        headers.append(key, value);
+      }
+    });
+    return headers;
+  }
+
+  Body.call(Request.prototype);
+
+  function Response(bodyInit, options) {
+    if (!options) {
+      options = {};
+    }
+
+    this.type = 'default';
+    this.status = options.status === undefined ? 200 : options.status;
+    this.ok = this.status >= 200 && this.status < 300;
+    this.statusText = 'statusText' in options ? options.statusText : 'OK';
+    this.headers = new Headers(options.headers);
+    this.url = options.url || '';
+    this._initBody(bodyInit);
+  }
+
+  Body.call(Response.prototype);
+
+  Response.prototype.clone = function() {
+    return new Response(this._bodyInit, {
+      status: this.status,
+      statusText: this.statusText,
+      headers: new Headers(this.headers),
+      url: this.url,
+    });
+  };
+
+  Response.error = function() {
+    var response = new Response(null, { status: 0, statusText: '' });
+    response.type = 'error';
+    return response;
+  };
+
+  var redirectStatuses = [301, 302, 303, 307, 308];
+
+  Response.redirect = function(url, status) {
+    if (redirectStatuses.indexOf(status) === -1) {
+      throw new RangeError('Invalid status code');
+    }
+
+    return new Response(null, { status: status, headers: { location: url } });
+  };
+
+  self.Headers = Headers;
+  self.Request = Request;
+  self.Response = Response;
+
+  self.fetch = function(input, init) {
+    return new Promise(function(resolve, reject) {
+      var request = new Request(input, init);
+      var xhr = new XMLHttpRequest();
+
+      xhr.onload = function() {
+        var options = {
+          status: xhr.status,
+          statusText: xhr.statusText,
+          headers: parseHeaders(xhr.getAllResponseHeaders() || ''),
+        };
+        options.url = 'responseURL' in xhr ? xhr.responseURL : options.headers.get('X-Request-URL');
+        var body = 'response' in xhr ? xhr.response : xhr.responseText;
+        resolve(new Response(body, options));
+      };
+
+      xhr.onerror = function() {
+        reject(new TypeError('Network request failed'));
+      };
+
+      xhr.ontimeout = function() {
+        reject(new TypeError('Network request failed'));
+      };
+
+      xhr.open(request.method, request.url, true);
+
+      if (request.credentials === 'include') {
+        xhr.withCredentials = true;
+      } else if (request.credentials === 'omit') {
+        xhr.withCredentials = false;
+      }
+
+      if ('responseType' in xhr && support.blob) {
+        xhr.responseType = 'blob';
+      }
+
+      request.headers.forEach(function(value, name) {
+        xhr.setRequestHeader(name, value);
+      });
+
+      xhr.send(typeof request._bodyInit === 'undefined' ? null : request._bodyInit);
+    });
+  };
+  self.fetch.polyfill = true;
+})(typeof self !== 'undefined' ? self : this);
+
+if (!NodeList.prototype.forEach) {
+  NodeList.prototype.forEach = forEachPolyfill;
+}
+
+if (!HTMLCollection.prototype.forEach) {
+  HTMLCollection.prototype.forEach = forEachPolyfill;
+}
+
+function forEachPolyfill(callback) {
+  var numberOfElements = this.length,
+    itemPosition;
+
+  for (itemPosition = 0; itemPosition < numberOfElements; itemPosition++) {
+    callback(this.item(itemPosition));
+  }
+}
+
+(function () {
+  function toArray() {
+    return Array.prototype.slice.call(this, 0);
+  }
+
+  if (!NodeList.prototype.toArray) {
+    NodeList.prototype.toArray = toArray;
+  }
+
+  if (!HTMLCollection.prototype.toArray) {
+    HTMLCollection.prototype.toArray = toArray;
+  }
+})();
+
+(function() {
+  if (typeof window.CustomEvent === 'function') return false;
+
+  function CustomEvent(event, params) {
+    params = params || { bubbles: false, cancelable: false, detail: undefined };
+    var evt = document.createEvent('CustomEvent');
+    evt.initCustomEvent(event, params.bubbles, params.cancelable, params.detail);
+    return evt;
+  }
+
+  CustomEvent.prototype = window.Event.prototype;
+
+  window.CustomEvent = CustomEvent;
+})();
+
+LPP.common.stripTags = function(value) {
+  return value.replace(/(?:<(?:[^>]+)>)/gi, '');
+};
+
+LPP.price = LPP.price || {};
+/**
+ * Formats price based on BE options.
+ *
+ * Input parameters can be numbers but shouldn't be strings parsed with
+ * parseFloat() or Number() directly as input strings might be '1.900' or '1,900'
+ * which would be parsed as 1.9 and 1 respectively.
+ *
+ * @param {(String|Number|Array)} values - values to be formatted
+ * @param {Boolean} [shouldGetFloat = undefined]
+ * @returns {String}
+ */
+LPP.price.format = function(values, shouldGetFloat) {
+  var price, valuesToFormat;
+
+  if (Array.isArray(values) ? !values.join('') : !values) {
+    return '';
+  }
+
+  valuesToFormat = Array.isArray(values) ? values : [values];
+
+  price = valuesToFormat.reduce(function(price, value) {
+    if (typeof value === 'number') {
+      value = String(value);
+    }
+    return price + LPP.price.parseValue(value);
+  }, 0);
+
+  if (shouldGetFloat) {
+    return price;
+  }
+
+  return LPP.price.finalFormat(price);
+};
+
+/**
+ * @param {String} value
+ * @returns {Number}
+ */
+LPP.price.parseValue = function(value) {
+  var groupSeparator, decimalSeparator;
+
+  if (!value) {
+    return null;
+  }
+
+  groupSeparator = LegacyBridge.getStoreConfig('locale/symbols/group');
+  decimalSeparator = LegacyBridge.getStoreConfig('locale/symbols/decimal');
+
+  if (groupSeparator) {
+    value = value.replace(new RegExp('\\' + groupSeparator + '(?=.{3})', 'g'), '');
+  }
+  value = value.replace(new RegExp('\\' + decimalSeparator), '.');
+
+  return parseFloat(value);
+};
+
+/**
+ * @param {Number|String} price
+ * @returns {String}
+ */
+LPP.price.finalFormat = function(price) {
+  const PATTERN_DECIMAL = /\.0*$/,
+    PATTERN_CUT_OFF = /[^#,0.]*/g;
+
+  var groupRegExp,
+    priceParts,
+    priceTotal,
+    priceDecimal = '',
+    pattern,
+    groupSeparator,
+    decimalSeparator,
+    decimalMatch,
+    decimalLength,
+    isPriceInt,
+    groupSeparatorPositions,
+    multipleGroupSeparatorRules;
+
+  if (typeof price === 'undefined') {
+    return '';
+  }
+
+  pattern = LegacyBridge.getStoreConfig('locale/currencyNumber').replace(PATTERN_CUT_OFF, '');
+  groupSeparatorPositions = pattern
+    .replace(PATTERN_DECIMAL, '')
+    .split(',')
+    .reduce(function(array, value) {
+      array.push(value.length);
+      return array;
+    }, [])
+    .slice(1);
+  multipleGroupSeparatorRules = groupSeparatorPositions.length > 1;
+
+  if (multipleGroupSeparatorRules) {
+    groupRegExp = new RegExp(
+      '\\d(?=\\d{' +
+        (groupSeparatorPositions[0] + groupSeparatorPositions[1]) +
+        '}$)|' +
+        '\\d(?=\\d{' +
+        groupSeparatorPositions[1] +
+        '}$)',
+      'g'
+    );
+  } else {
+    groupRegExp = new RegExp('\\d(?=(\\d{' + groupSeparatorPositions[0] + '})+$)', 'g');
+  }
+
+  decimalMatch = pattern.match(PATTERN_DECIMAL);
+  decimalLength = decimalMatch ? decimalMatch[0].length - 1 : 0;
+  isPriceInt = decimalLength === 0;
+
+  if (isPriceInt) {
+    priceTotal = price.toFixed(0);
+  } else {
+    priceParts = price.toFixed(decimalLength).split('.');
+    priceTotal = priceParts[0];
+    priceDecimal = priceParts[1];
+  }
+
+  groupSeparator = LegacyBridge.getStoreConfig('locale/symbols/group');
+  decimalSeparator = LegacyBridge.getStoreConfig('locale/symbols/decimal');
+
+  priceTotal = priceTotal.replace(groupRegExp, '$&' + groupSeparator);
+  price = isPriceInt ? priceTotal : priceTotal + decimalSeparator + priceDecimal;
+
+  return price;
+};
+
+/**
+ * render Mustache template from html file in templateUrl inside parentNode with variables set in variablesObject
+ * @param parentNode
+ * @param templateUrl
+ * @param [variablesObject]
+ */
+(function(global) {
+  var cache = Object.create(null);
+
+  function getTpl(url) {
+    if (cache[url]) {
+      return Promise.resolve(cache[url]);
+    }
+    return fetch(url).then(function(response) {
+      return (cache[url] = response.text());
+    });
+  }
+
+  global.setMustacheTemplate = function(parentNode, templateUrl, variablesObject) {
+    variablesObject = variablesObject || {};
+    return getTpl(templateUrl)
+      .then(function(tpl) {
+        var html = Mustache.render(tpl, variablesObject);
+        parentNode.innerHTML = html;
+
+        return html;
+      })
+      .catch(function(err) {
+        // brak obsługi błędów
+      });
+  };
+})(LPP.common);
+
+LPP.common = LPP.common || {};
+LPP.common.checkout = LPP.common.checkout || {};
+
+/**
+ * Check if post-code is on unavailable area list,
+ * resolve promise with true when post-code is block
+ * resolve promise with false when post-code is supported
+ *
+ * @param postcode
+ * @return promise
+ */
+LPP.common.checkout.isPostCodeOutOfService = function(postcode) {
+  if (!LPP.common.checkout.isPostCodeOutOfServiceUrl) {
+    return new Promise(function(resolve) {
+      resolve(false);
+    });
+  }
+
+  return fetch(LPP.common.checkout.isPostCodeOutOfServiceUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: 'postcode=' + postcode,
+  }).then(function(response) {
+    return response.json();
+  });
+};
+
+// /**
+//  * Check if postcode is on handled postcodes list,
+//  * resolve promise with true when postcode is handled
+//  * resolve promise with false when postcode is not handled
+//  *
+//  * @param postcode
+//  * @return promise
+//  */
+
+LPP.common.checkout.isPostcodeInService = function(postcode, deliveryType) {
+  if (!LPP.common.checkout.blockNotInServicePostcodesEnabled || deliveryType === LPP.common.shipping.storeMethod) {
+    return Promise.resolve(true);
+  }
+
+  return fetch(LPP.common.checkout.isPostcodeInServiceUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: 'postcode=' + postcode + '&couriercode=' + deliveryType,
+  })
+    .then(function(response) {
+      return response.json();
+    })
+    .catch(function() {
+      return true;
+    });
+};
+
+LPP.common.checkout.creditCardInput = (function() {
+  var self = {
+    key: '',
+
+    init: function(inputSelector, maxNumberOfDigits) {
+      var inputs;
+
+      inputSelector = inputSelector || '.credit-card-number-input';
+      maxNumberOfDigits = maxNumberOfDigits || 19;
+      inputs = document.querySelectorAll(inputSelector);
+
+      inputs.forEach(function(input) {
+        input.addEventListener('keydown', function(event) {
+          self.key = event.key;
+        });
+        input.addEventListener('input', self.formatCardNubmer.bind(null, maxNumberOfDigits));
+        input.addEventListener('keyup', function() {
+          self.key = '';
+        });
+      });
+    },
+
+    formatCardNubmer: function(maxNumberOfDigits, event) {
+      var cursorPosition = event.target.selectionStart,
+        isDeleteOrBackspace = self.key === LPP.common.key.DELETE || self.key === LPP.common.key.BACKSPACE,
+        newValue = self.prepareCardNumberValue(event.target.value, maxNumberOfDigits);
+
+      event.target.value = self.trimIfNeeded(newValue, isDeleteOrBackspace);
+      self.setProperCursorPosition(event, cursorPosition, isDeleteOrBackspace);
+    },
+
+    prepareCardNumberValue: function(value, maxNumberOfDigits) {
+      return value
+        .replace(/\D/g, '')
+        .slice(0, maxNumberOfDigits)
+        .replace(/(\d{4})/g, '$1 ');
+    },
+
+    trimIfNeeded: function(value, condition) {
+      return condition ? value.trim() : value;
+    },
+
+    setProperCursorPosition: function(event, cursorPosition, isDeleteOrBackspace) {
+      var GREATER_CURSOR_POSITION = cursorPosition + 1,
+        LOWER_CURSOR_POSITION = cursorPosition - 1,
+        correctCursorPosition = cursorPosition,
+        isDigit = !isNaN(parseInt(self.key)),
+        isSpace = self.key === LPP.common.key.SPACE,
+        isDelete = self.key === LPP.common.key.DELETE,
+        isCursorBeforeSpaceAfterType = !((cursorPosition + 1) % 5),
+        isCursorAfterSpaceAfterType = !(cursorPosition % 5),
+        userTypedDeleteBeforeSpace = isDelete && isCursorBeforeSpaceAfterType,
+        userTypedDigitBeforeSpace = isDigit && isCursorAfterSpaceAfterType,
+        userTypedFourthDigitInGroup = isDigit && isCursorBeforeSpaceAfterType,
+        userTypedSpaceNotBeforeSpace = isSpace && !isCursorAfterSpaceAfterType,
+        userActionShouldBeIgnored = (!isDigit && !isSpace && !isDeleteOrBackspace) || userTypedSpaceNotBeforeSpace;
+
+      if (userTypedDeleteBeforeSpace || userTypedDigitBeforeSpace || userTypedFourthDigitInGroup) {
+        correctCursorPosition = GREATER_CURSOR_POSITION;
+      } else if (userActionShouldBeIgnored) {
+        correctCursorPosition = LOWER_CURSOR_POSITION;
+      }
+
+      event.target.setSelectionRange(correctCursorPosition, correctCursorPosition);
+    },
+  };
+
+  return self;
+})();
+
+
+LPP.common.sales.order.history.getOrderDetails = function(url, id, callback) {
+  LegacyBridge.fetchData(LPP.common.baseUrl + url, { order_id: id }, 'get')
+    .then(function(response) {
+      if (!response.ok) {
+        throw new Error(response.message);
+      }
+      callback(response);
+    })
+    .catch(function(error) {
+      console.error(error);
+    });
+};
+
+/**
+ *
+ * @param {Object} options
+ * @param {string} [options.parentSelector = '.main-content']
+ * @param {string} [options.spinnerId = 'spinner']
+ * @param {string} [options.spinnerClass = 'spinner-wrapper']
+ * @param {string} [options.sizeClass = '']
+ * @param {boolean} [options.keepContent = false]
+ * @param {boolean} [options.withModal = false]
+ * @param {string} [options.headerText]
+ */
+
+(function () {
+  function isVisible(el) {
+    const style = window.getComputedStyle(el, null);
+    return style.display !== 'none' && style.visibility === 'visible';
+  }
+
+  var promise;
+  window.LPP.common.openSpinner = function (options) {
+    var spinnerElement,
+      spinnerClass,
+      spinnerTemplateUrl,
+      sizeClass,
+      parentSelector,
+      keepContent,
+      withModal,
+      headerText,
+      parent,
+      spinnerVariablesObject;
+
+    spinnerElement = document.createElement('div');
+    spinnerClass = options.spinnerClass || 'spinner-wrapper';
+    spinnerTemplateUrl = LPP.common.getSpinnerTemplateUrl();
+    sizeClass = options.sizeClass || 'normal';
+    parentSelector = options.parentSelector || 'body';
+    keepContent = options.keepContent || false;
+    withModal = options.withModal || false;
+    headerText = options.headerText || '';
+    parent = document.querySelector(parentSelector);
+    spinnerVariablesObject = {
+      isHeaderVisible: headerText !== '',
+      headerText: headerText
+    };
+
+    spinnerElement.id = options.spinnerId || 'spinner';
+    spinnerElement.classList.add(spinnerClass);
+    spinnerElement.classList.add(sizeClass);
+
+    return (promise = new Promise(function (resolve, reject) {
+      LPP.common
+        .setMustacheTemplate(spinnerElement, spinnerTemplateUrl, spinnerVariablesObject)
+        .then(function () {
+          if (parent.style.position !== 'fixed' && parent.style.position !== 'absolute') {
+            parent.style.position = 'relative';
+          }
+
+          if (keepContent) {
+            parent.insertBefore(spinnerElement, parent.firstChild);
+          } else {
+            parent.innerHTML = '';
+            parent.appendChild(spinnerElement);
+          }
+
+          // rzeźba pod mobilne safari :(
+          setTimeout(function () {
+            const timer = setInterval(function () {
+              if (isVisible(spinnerElement)) {
+                clearInterval(timer);
+                promise = null;
+                resolve(true);
+              }
+            }, 55);
+          }, 1000);
+
+          if (withModal) {
+            spinnerElement.classList.add('modal');
+          }
+        })
+        .catch(function () {
+          reject('Spinner error!');
+        });
+    }));
+  };
+
+  /**
+   *
+   * @param {Object} options
+   * @param {string} [options.errorMessage = '']
+   * @param {string} [options.infoHeaderSelector = '.info-header']
+   * @param {string} [options.spinnerId = 'spinner']
+   */
+  window.LPP.common.closeSpinner = function (options) {
+    options = options || {};
+    var errorMessage = options.errorMessage || '',
+      infoHeaderSelector = options.infoHeaderSelector || '.info-header',
+      spinnerId = options.spinnerId || 'spinner',
+      timeout = 0,
+      fadeOutTime = typeof options.fadeOutTime === 'number' ? options.fadeOutTime : 400,
+      spinner = document.getElementById(spinnerId),
+      infoHeader = spinner ? spinner.querySelector(infoHeaderSelector) : '';
+
+    if (!spinner) {
+      return;
+    }
+
+    if (errorMessage && infoHeader) {
+      timeout = 5000;
+      infoHeader.innerHTML = errorMessage;
+    }
+
+    if (!timeout && !fadeOutTime) {
+      if (spinner.parentNode) {
+        spinner.parentNode.removeChild(spinner);
+      }
+      return;
+    }
+
+    setTimeout(function () {
+      spinner.classList.add('fade-out');
+
+      setTimeout(function () {
+        if (spinner.parentNode) {
+          spinner.parentNode.removeChild(spinner);
+        }
+      }, fadeOutTime);
+    }, timeout);
+  };
+
+  window.LPP.common.getSpinnerTemplateUrl = function () {
+    var brandName = LPP.common.brandName.toLowerCase(),
+      localSpinnerTemplateUrl = LPP[brandName].spinnerTemplateUrl;
+
+    if (typeof localSpinnerTemplateUrl !== 'undefined') {
+      return localSpinnerTemplateUrl;
+    }
+    return (
+      LPP.common.baseUrl +
+      '/skin/frontend/' +
+      __FRONTEND_VERSION__ +
+      '/base/default/lib/lpp-common/src/components/spinner/spinner.html'
+    );
+  };
+})();
+
+var POPUP_CLASS = 'popup',
+  POPUP_ACTIVE_CLASS = 'active',
+  POPUP_WRAPPER_CLASS = 'popup-wrapper',
+  POPUP_TITLE_CLASS = 'popup-title',
+  POPUP_CONTENT_CLASS = 'popup-content',
+  POPUP_CLOSE_BUTTON_CLASS = 'popup-close-button',
+  POPUP_BACKDROP_ID = 'popupBackdrop',
+  POPUP_BACKDROP_CLASS = 'popup-backdrop',
+  POPUP_BACKDROP_ACTIVE_CLASS = 'active',
+  POPUP_PLACEHOLDER_CLASS = 'popup-placeholder';
+
+/**
+ * @param {Object} options
+ * @param {String} [options.id = popup-X] - X to wygenerowana wartość
+ * @param {String} [options.title = '']
+ * @param {String|NodeElement} [options.content]
+ * @param {Array} [options.cssClass]
+ * @param {Boolean} [options.keepContent = false]
+ * @param {Function} [options.onCreateCallback]
+ * @param {Function} [options.onOpenCallback]
+ * @param {Function} [options.onClosedCallback]
+ */
+LPP.Popup = function(options) {
+  this.id = options.id || this.generateId();
+  this.title = options.title ? options.title : '';
+  this.content = options.content ? options.content : '';
+  this.cssClass = options.cssClass ? options.cssClass : [];
+  this.keepContent = typeof options.keepContent === 'boolean' ? options.keepContent : false;
+  this.onCreateCallback = typeof options.onCreateCallback === 'function' ? options.onCreateCallback : function() {};
+  this.onOpenCallback = typeof options.onOpenCallback === 'function' ? options.onOpenCallback : function() {};
+  this.onClosedCallback = typeof options.onClosedCallback === 'function' ? options.onClosedCallback : function() {};
+  LPP.Popup.instances[this.id] = this;
+};
+
+LPP.Popup.instances = {}; // Obiekt przechowujacy referencje do obiektów typu LPP.Popup
+LPP.Popup.currentIdPostfix = 0;
+
+Object.defineProperties(LPP.Popup.prototype, {
+  el: {
+    get: function() {
+      if (!this._el) {
+        this._el = document.getElementById(this.id);
+      }
+      return this._el;
+    },
+  },
+  wrapperEl: {
+    get: function() {
+      var popupEl = this.el;
+
+      if (!this._wrapperEl && popupEl) {
+        this._wrapperEl = popupEl.querySelector('.' + POPUP_WRAPPER_CLASS);
+      }
+      return this._wrapperEl;
+    },
+  },
+  titleEl: {
+    get: function() {
+      var popupEl = this.el;
+
+      if (!this._titleEl && popupEl) {
+        this._titleEl = popupEl.querySelector('.' + POPUP_TITLE_CLASS);
+      }
+      return this._titleEl;
+    },
+  },
+  contentEl: {
+    get: function() {
+      var popupEl = this.el;
+
+      if (!this._contentEl && popupEl) {
+        this._contentEl = popupEl.querySelector('.' + POPUP_CONTENT_CLASS);
+      }
+      return this._contentEl;
+    },
+  },
+  closeButtonEl: {
+    get: function() {
+      var popupEl = this.el;
+
+      if (!this._closeButtonEl && popupEl) {
+        this._closeButtonEl = popupEl.querySelector('.' + POPUP_CLOSE_BUTTON_CLASS);
+      }
+      return this._closeButtonEl;
+    },
+  },
+  backdropEl: {
+    get: function() {
+      if (!this._backdropEl) {
+        this._backdropEl = document.getElementById(POPUP_BACKDROP_ID);
+      }
+      return this._backdropEl;
+    },
+  },
+});
+
+LPP.Popup.prototype.open = function() {
+  this.disableBodyScroll();
+  this.showBackdrop();
+
+  if (!this.el) {
+    this.createPopup();
+    this.onCreateCallback();
+  }
+
+  this.fillPopupContent();
+  this.showPopup();
+  this.onOpenCallback();
+};
+
+LPP.Popup.prototype.close = function() {
+  this.hidePopup();
+  this.closeBackdrop();
+  this.enableBodyScroll();
+  this.onClosedCallback();
+};
+
+LPP.Popup.prototype.preparePopupLayout = function() {
+  var popupEl;
+
+  popupEl = document.createElement('div');
+  popupEl.id = this.id;
+  popupEl.classList.add(POPUP_CLASS);
+
+  if (this.cssClass.length) {
+    popupEl.className += ' ' + this.cssClass.join(' ');
+  }
+
+  popupEl.innerHTML =
+    '<div class="' +
+    POPUP_WRAPPER_CLASS +
+    '">' +
+    '<div class="' +
+    POPUP_TITLE_CLASS +
+    '"></div>' +
+    '<div class="' +
+    POPUP_CONTENT_CLASS +
+    '"></div>' +
+    '<div class="' +
+    POPUP_CLOSE_BUTTON_CLASS +
+    '"></div>' +
+    '</div>';
+
+  document.body.appendChild(popupEl);
+};
+
+LPP.Popup.prototype.applyPopupActions = function() {
+  if (!this.el) {
+    return;
+  }
+
+  this.el.addEventListener('click', this.close.bind(this));
+
+  if (this.closeButtonEl) {
+    this.closeButtonEl.addEventListener('click', this.close.bind(this));
+  }
+
+  this.wrapperEl.addEventListener('click', function(event) {
+    event.stopPropagation();
+  });
+
+  document.addEventListener('keydown', this.closeOnEsc.bind(this));
+};
+
+LPP.Popup.prototype.fillPopupContent = function() {
+  if (this.titleEl) {
+    this.titleEl.innerText = this.title;
+  }
+
+  if (!this.contentEl) {
+    return;
+  }
+
+  if (typeof this.content === 'string') {
+    this.contentEl.innerHTML = this.content;
+  } else if (this.content instanceof HTMLElement) {
+    this.replaceContentElementWithPlaceholder();
+  }
+};
+
+LPP.Popup.prototype.replaceContentElementWithPlaceholder = function() {
+  var placeholderId = this.id + '-placeholder',
+    placeholderEl = document.getElementById(placeholderId);
+
+  if (!placeholderEl) {
+    placeholderEl = document.createElement('div');
+    placeholderEl.id = placeholderId;
+    placeholderEl.classList.add(POPUP_PLACEHOLDER_CLASS);
+    this.content.parentNode.insertBefore(placeholderEl, this.content);
+    this.contentEl.insertAdjacentElement('afterbegin', this.content);
+  }
+};
+
+LPP.Popup.prototype.undoReplaceContentEl = function() {
+  var placeholderEl = document.getElementById(this.id + '-placeholder');
+
+  placeholderEl.parentNode.replaceChild(this.content, placeholderEl);
+};
+
+LPP.Popup.prototype.createPopup = function() {
+  if (this.el) {
+    return;
+  }
+
+  this.preparePopupLayout();
+  this.applyPopupActions();
+};
+
+LPP.Popup.prototype.showPopup = function() {
+  if (!this.el) {
+    return;
+  }
+
+  this.el.classList.add(POPUP_ACTIVE_CLASS);
+};
+
+LPP.Popup.prototype.hidePopup = function() {
+  if (!this.el) {
+    return;
+  }
+
+  this.el.classList.remove(POPUP_ACTIVE_CLASS);
+
+  if (!this.keepContent && this.content instanceof HTMLElement) {
+    this.undoReplaceContentEl();
+  }
+};
+
+LPP.Popup.prototype.generateId = function() {
+  var postfixValue = this.getNextIdPostfix(),
+    popupIdsList = Object.getOwnPropertyNames(LPP.Popup.instances),
+    popupId = 'popup-' + postfixValue,
+    isExistingElement = document.getElementById(popupId) ? true : false;
+
+  if (popupIdsList.indexOf(popupId) > -1 || isExistingElement) {
+    return this.generateId();
+  }
+
+  return popupId;
+};
+
+LPP.Popup.prototype.getNextIdPostfix = function() {
+  return ++LPP.Popup.currentIdPostfix;
+};
+
+LPP.Popup.prototype.changeOnCreateCallback = function(newCallbackFunction) {
+  this.onCreateCallback = newCallbackFunction;
+};
+
+LPP.Popup.prototype.changeOnOpenCallback = function(newCallbackFunction) {
+  this.onOpenCallback = newCallbackFunction;
+};
+
+LPP.Popup.prototype.changeOnClosedCallback = function(newCallbackFunction) {
+  this.onClosedCallback = newCallbackFunction;
+};
+
+LPP.Popup.prototype.isOpened = function() {
+  if (!this.el) {
+    return false;
+  }
+
+  return this.el.classList.contains(POPUP_ACTIVE_CLASS);
+};
+
+LPP.Popup.prototype.closeOnEsc = function(event) {
+  if (event.key === 'Escape' && this.isOpened()) {
+    this.close();
+  }
+};
+
+LPP.Popup.prototype.destroyElements = function() {
+  if (!this.el) {
+    return;
+  }
+  this.el.parentNode.removeChild(this.el);
+};
+
+// BACKDROP METHODS
+
+LPP.Popup.prototype.createBackdrop = function() {
+  var bodyEl, backdropEl;
+
+  if (this.backdropEl) {
+    return;
+  }
+
+  bodyEl = document.querySelector('body');
+  backdropEl = document.createElement('div');
+  backdropEl.id = POPUP_BACKDROP_ID;
+  backdropEl.classList.add(POPUP_BACKDROP_CLASS);
+  bodyEl.appendChild(backdropEl);
+};
+
+LPP.Popup.prototype.showBackdrop = function() {
+  this.createBackdrop();
+  this.backdropEl.classList.add(POPUP_BACKDROP_ACTIVE_CLASS);
+};
+
+LPP.Popup.prototype.closeBackdrop = function() {
+  if (!this.backdropEl) {
+    return;
+  }
+
+  this.backdropEl.classList.remove(POPUP_BACKDROP_ACTIVE_CLASS);
+};
+
+// DOCUMENT BODY ACTIONS
+
+LPP.Popup.prototype.disableBodyScroll = function() {
+  var bodyEl = document.body;
+  bodyEl.style.overflow = 'hidden';
+};
+
+LPP.Popup.prototype.enableBodyScroll = function() {
+  var bodyEl = document.body;
+  bodyEl.style.overflow = 'auto';
+};
+
+LPP.common.checkout.postcodeAutocomplete = (function() {
+  var self = {
+    loadingClass: 'loading',
+    warningClass: 'warning',
+    init: function(options) {
+      if (!LPP.common.checkout.postcodeAutocompleteEnabled) {
+        return;
+      }
+
+      self.cityInput = document.getElementById(options.cityInputId);
+      self.streetInput = document.getElementById(options.streetInputId);
+      self.buildingNumberInput = document.getElementById(options.buildingNumberInputId);
+      self.postcodeInput = document.getElementById(options.postcodeInputId);
+
+      if (!self.cityInput || !self.streetInput || !self.buildingNumberInput || !self.postcodeInput) {
+        return;
+      }
+
+      self.hasParentValidationClass = options.hasParentValidationClass;
+
+      self.autocompletedPostcode = self.postcodeInput.value;
+      self.postcodeInputParent = self.postcodeInput.parentNode;
+
+      self.beforeRequestCustom = options.beforeRequestCustom || function() {};
+      self.afterRequestCustom = options.afterRequestCustom || function() {};
+      self.openPopup = options.openPopup;
+      self.closePopup = options.closePopup;
+
+      self.cityInput.addEventListener('focus', self.setTempInputValue);
+      self.streetInput.addEventListener('focus', self.setTempInputValue);
+      self.buildingNumberInput.addEventListener('focus', self.setTempInputValue);
+
+      self.cityInput.addEventListener('blur', self.getPostCodeIfRequiredFieldsNotEmpty);
+      self.streetInput.addEventListener('blur', self.getPostCodeIfRequiredFieldsNotEmpty);
+      self.buildingNumberInput.addEventListener('blur', self.getPostCodeIfRequiredFieldsNotEmpty);
+    },
+
+    setTempInputValue: function(event) {
+      self.tempInputValue = event.target.value;
+    },
+
+    getPostCodeIfRequiredFieldsNotEmpty: function(event) {
+      if (
+        !self.cityInput.value ||
+        !self.streetInput.value ||
+        !self.buildingNumberInput.value ||
+        (!self.inputValueHasBeenChanged(event.target.value) &&
+          (!self.autocompletedPostcode || self.autocompletedPostcode === self.postcodeInput.value))
+      ) {
+        return;
+      }
+
+      if (event.relatedTarget && 'checkoutsubmit' in event.relatedTarget.dataset && self.postcodeInput.value) {
+        return;
+      }
+
+      self.beforeRequest();
+      self.beforeRequestCustom();
+
+      self
+        .getPostcodeAndValidateAddress({
+          city: self.cityInput.value,
+          street: self.streetInput.value,
+          house: self.buildingNumberInput.value,
+        })
+        .then(function(address) {
+          self.afterRequest();
+          self.afterRequestCustom();
+          if (address) {
+            self.completePostcode(address);
+          }
+        });
+    },
+
+    inputValueHasBeenChanged: function(newValue) {
+      return newValue !== self.tempInputValue;
+    },
+
+    getPostcodeAndValidateAddress: function(address) {
+      var city = address.city || '',
+        street = address.street || '',
+        house = address.house || '';
+
+      return fetch(LPP.common.checkout.getPostcodeAndValidateAddressUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: 'address=' + city + ' ' + street + ' ' + house,
+      })
+        .then(function(response) {
+          return response.json();
+        })
+        .then(self.processApiResponse);
+    },
+
+    processApiResponse: function(json) {
+      if (!json[0]) {
+        return;
+      }
+
+      var response = json[0],
+        mapQualityCodeToTranslationKey = {
+          UNDEF_01: 'incorrect_city',
+          UNDEF_02: 'incorrect_city',
+          UNDEF_03: 'incorrect_street',
+          UNDEF_04: 'incorrect_house',
+          UNDEF_05: 'incorrect_apartment',
+          UNDEF_06: 'foreign_address',
+        },
+        qualityCode = response['quality-code'],
+        translationKey;
+
+      if (qualityCode === 'GOOD') {
+        return response;
+      }
+
+      translationKey = mapQualityCodeToTranslationKey[qualityCode];
+
+      if (!translationKey) {
+        response.errorMessage = global.i18n['incorrect_address'];
+      } else {
+        response.errorMessage = global.i18n[translationKey];
+      }
+      return response;
+    },
+
+    beforeRequest: function() {
+      self.postcodeInput.disabled = true;
+      self.postcodeInputParent.classList.add(self.loadingClass);
+    },
+
+    afterRequest: function() {
+      self.postcodeInput.value = '';
+      self.postcodeInput.disabled = false;
+      self.postcodeInputParent.classList.remove(self.loadingClass);
+    },
+
+    completePostcode: function(address) {
+      if (address.index) {
+        self.autocompletedPostcode = address.index;
+        self.postcodeInput.value = address.index;
+        jQuery(self.postcodeInput).valid();
+      }
+      if (address.errorMessage) {
+        var input = self.mapQualityCodeToInput(address['quality-code']);
+        self.setInputHasWarning(input);
+      }
+      if (!self.isUserCityAndStreetCorrect(address) && address.place && address.street) {
+        self.showTypoInAddressPopup(address);
+      } else {
+        if (address.errorMessage) {
+          self.openPopup(address.errorMessage);
+        }
+      }
+    },
+
+    mapQualityCodeToInput: function(qualityCode) {
+      var mapQualityCodeToInput = {
+        UNDEF_01: self.cityInput,
+        UNDEF_02: self.cityInput,
+        UNDEF_03: self.streetInput,
+        UNDEF_04: self.buildingNumberInput,
+        UNDEF_05: self.buildingNumberInput,
+      };
+
+      return mapQualityCodeToInput[qualityCode];
+    },
+
+    setInputHasWarning: function(input) {
+      if (input) {
+        var validationClassContainer = self.hasParentValidationClass ? input.parentElement : input;
+        validationClassContainer.classList.add(self.warningClass);
+      }
+    },
+
+    showTypoInAddressPopup: function(address) {
+      fetch(LPP.common.checkout.postcodeAutocompletePopupTemplateUrl)
+        .then(function(response) {
+          return response.text();
+        })
+        .then(function(template) {
+          var popupContent = Mustache.render(template, {
+            city: address.place,
+            street: address.street,
+            house: address.house,
+            slash: address.slash ? '/' + address.slash : '',
+            room: address.room,
+            title: global.i18n.typo_in_address,
+            question: global.i18n.did_you_mean_address_below,
+            yes: global.i18n.yes,
+            no: global.i18n.no,
+          });
+
+          self.openPopup(popupContent);
+          document.getElementById('correctAddress').addEventListener('click', self.fixAddress.bind(self, address));
+          document.getElementById('closeAddressCorrectionModal').addEventListener('click', self.closePopup);
+        });
+    },
+
+    isUserCityAndStreetCorrect: function(address) {
+      var userCity = self.cityInput.value,
+        userStreet = self.streetInput.value;
+      return (
+        address.place &&
+        address.place.split(' ')[1] === userCity.trim().split(' ')[0] &&
+        address.street &&
+        address.street.split(' ')[1] === userStreet.trim().split(' ')[0]
+      );
+    },
+
+    fixAddress: function(address) {
+      self.cityInput.value = address.place.slice(address.place.indexOf(' ') + 1);
+      self.streetInput.value =
+        address.street.indexOf('ул') !== -1 ? address.street.slice(address.street.indexOf(' ') + 1) : address.street;
+
+      jQuery(self.cityInput).valid();
+      jQuery(self.streetInput).valid();
+
+      self.closePopup();
+    },
+  };
+
+  return self;
+})();
+
+var rodoPopupActions = {
+  init: function () {
+    if (!this.isPathExcluded()) {
+      this.rodoPopupOverlay = document.getElementById('rodoPopupOverlay');
+      this.submitButton = document.getElementById('rodoSubmit');
+      this.url = this.submitButton.dataset.url;
+      this.actions();
+      this.rodoPopupOverlay.style.display = 'block';
+      if (typeof jQuery.mCustomScrollbar === 'function') {
+        jQuery('#rodoPolicyContent').mCustomScrollbar();
+      }
+    }
+  },
+  excludedPages: ['privacy-policy', 'terms', 'help-regulamin'],
+  url: '',
+  rodoPopupOverlay: null,
+  submitButton: null,
+  actions: function () {
+    this.submitButton.addEventListener('click', this.sendData.bind(this));
+  },
+  isPathExcluded: function () {
+    var path = window.location.pathname.split('/');
+    return this.excludedPages.includes(path[path.length - 1]);
+  },
+  closePopup: function () {
+    this.rodoPopupOverlay.style.display = 'none';
+    window.onclick = null;
+    this.submitButton.removeEventListener('click', this.sendData);
+  },
+  sendData: function () {
+    LegacyBridge.fetchData(this.url, 'accept_privacy=1', 'post')
+      .then(function (response) {
+        return response.json();
+      })
+      .then(
+        function (json) {
+          if (json.status) {
+            this.closePopup();
+          }
+        }.bind(this)
+      )
+      .catch(function (err) {
+        // brak obsługi błędów
+      });
+  }
+};
+
+/**
+ * @type {{init: LPP.common.togglePasswordField.init, findToggleWrapper: (function(): (NodeListOf<HTMLElementTagNameMap[string]> | NodeListOf<SVGElementTagNameMap[string]> | NodeListOf<Element>)), getInput: (function(HTMLElement): *), getSwitcher: (function(HTMLElement): *), bindToggle: LPP.common.togglePasswordField.bindToggle, toggle: LPP.common.togglePasswordField.toggle}}
+ */
+LPP.common.togglePasswordField = {
+  init: function() {
+    var wrappersPassword = this.findToggleWrapper();
+    this.bindToggle(wrappersPassword);
+  },
+  /**
+   * @return {NodeListOf<HTMLElementTagNameMap[string]> | NodeListOf<SVGElementTagNameMap[string]> | NodeListOf<Element>}
+   */
+  findToggleWrapper: function() {
+    return document.querySelectorAll('.password-toggle');
+  },
+  /**
+   * @param  {HTMLElement} wrapper
+   */
+  getInput: function(wrapper) {
+    return wrapper.querySelector('[type="password"]');
+  },
+  /**
+   * @param {HTMLElement} wrapper
+   */
+  getSwitcher: function(wrapper) {
+    return wrapper.querySelector('.show-label');
+  },
+  /**
+   *
+   * @param {NodeList} wrappersNodes
+   */
+  bindToggle: function(wrappersNodes) {
+    var nodeIndex, node, input, switcher;
+
+    for (nodeIndex in wrappersNodes) {
+      if (wrappersNodes.hasOwnProperty(nodeIndex)) {
+        node = wrappersNodes[nodeIndex];
+        input = this.getInput(node);
+        switcher = this.getSwitcher(node);
+
+        switcher.addEventListener('click', this.toggle.bind(null, input, switcher));
+      }
+    }
+  },
+  /**
+   *
+   * @param {HTMLInputElement} input
+   * @param {HTMLSpanElement} switcher
+   */
+  toggle: function(input, switcher) {
+    var shouldHide = switcher.textContent === switcher.dataset.hide;
+    switcher.textContent = shouldHide ? switcher.dataset.show : switcher.dataset.hide;
+    input.type = shouldHide ? 'password' : 'text';
+  },
+};
+
+LPP.common.disablePasteForField = {
+  wasPaste: false,
+  /**
+   * @param {string} confirmationId
+   * @param {object} [extraConfig={}] - key → value pair where 'key' is the attribute name and 'value' is the attribute value
+   * ex. { id: 'objectId', class: 'new object-classes' }
+   * existing attributes will be overwritten by extraConfig
+   */
+  init: function(confirmationId, extraConfig) {
+    var confirmation = document.getElementById(confirmationId);
+    extraConfig = extraConfig || {};
+
+    if (confirmation) {
+      confirmation.addEventListener('paste', this.pasteEventListener.bind(this, confirmationId, extraConfig));
+      confirmation.addEventListener('keyup', this.keyupEventListener.bind(this));
+    }
+  },
+  /**
+   * @param {string} confirmationId
+   * @param {object} extraConfig
+   * @param {UIEvent} event
+   */
+  pasteEventListener: function(confirmationId, extraConfig, event) {
+    var nextSibling = event.target.nextElementSibling,
+      label = nextSibling;
+
+    this.wasPaste = true;
+
+    if (!nextSibling || nextSibling.getAttribute('for') !== confirmationId) {
+      label = document.createElement('label');
+    }
+
+    label.classList.add('error');
+    label.textContent = global.i18n.input_paste_disable;
+    label.setAttribute('for', confirmationId);
+
+    this.setExtraConfigToElement(label, extraConfig);
+
+    event.target.parentNode.insertBefore(label, nextSibling);
+
+    event.preventDefault();
+    event.target.classList.add('error');
+  },
+  /**
+   * @param {UIEvent} event
+   */
+  keyupEventListener: function(event) {
+    if (this.wasPaste) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    if (!event.ctrlKey) {
+      this.wasPaste = false;
+    }
+  },
+  /**
+   * @param {HTMLElement} element
+   * @param {Object} config
+   */
+  setExtraConfigToElement: function(element, config) {
+    Object.keys(config).forEach(function(property) {
+      var value = config[property];
+
+      element.setAttribute(property, value);
+    });
+  },
+};
+
+LPP.common.form = LPP.common.form || {};
+
+LPP.common.form.formatInputValueOnBlur = function(inputIds, formatMethod) {
+  if (!Array.isArray(inputIds)) {
+    inputIds = [inputIds];
+  }
+
+  inputIds.forEach(function(id) {
+    var input = document.getElementById(id);
+
+    if (!input) {
+      return;
+    }
+
+    input.addEventListener('blur', function() {
+      input.value = formatMethod(input.value);
+      jQuery(input).valid();
+    });
+  });
+};
+
+LPP.common.form.formatPostcodeUK = function(postcode) {
+  var postcodeWithoutSpaces = postcode.replace(/ /g, '');
+
+  if (postcodeWithoutSpaces.length < 5 || postcodeWithoutSpaces.length > 7) {
+    return postcode;
+  }
+
+  return postcodeWithoutSpaces.replace(/(\w{3})$/g, ' $1');
+};
+
+LPP.common.formSelect = function(selectEl, changeCallback, customStruct) {
+  this.selectEl = selectEl;
+  this.changeCallback = changeCallback;
+  this.isDesktop = true;
+  var self = this;
+
+  if (!customStruct && !LegacyBridge.getStoreConfig('geoValidation/enabled')) {
+    return;
+  }
+
+  if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Trident|Opera Mini/i.test(navigator.userAgent)) {
+    this.isDesktop = false;
+
+    if (customStruct) {
+      this.selectEl.addEventListener('change', function(evt) {
+        self.changeCallback(evt.target.value);
+      });
+      this.changeCallback(this.selectEl.value);
+    }
+  } else {
+    this.createOverlay(customStruct);
+  }
+};
+
+LPP.common.formSelect.prototype.createOverlay = function(customStruct) {
+  var self = this;
+  this.selectEl.style.display = 'none';
+  this.selectEl.classList.add('hidden');
+  this.selectedElement = document.createElement('div');
+  this.optionsList = document.createElement('div');
+  this.selector = document.createElement('div');
+  this.selector.className = 'lppFormSelect ' + this.selectEl.className;
+  this.selector.classList.remove('hidden');
+  this.showOptions = this.showOptions.bind(this);
+  this.closeByClickOutside = this.closeByClickOutside.bind(this);
+  this.onChange = this.onChange.bind(this);
+  this.clearCurrent = this.clearCurrent.bind(this);
+  this.customStruct = customStruct;
+
+  this.optionsList.classList.add('options');
+  this.selectedElement.classList.add('selected');
+
+  for (var index in this.selectEl.options) {
+    var option = this.selectEl.options[index],
+      newOption = document.createElement('div');
+
+    if (option && option.innerHTML) {
+      newOption.classList.add('option');
+      newOption.setAttribute('value', !customStruct ? option.innerText : option.value);
+      newOption.insertAdjacentHTML('afterbegin', option.innerHTML);
+      newOption.addEventListener('click', function(event) {
+        self.selectOption(event, this);
+      });
+      this.optionsList.appendChild(newOption);
+    }
+  }
+
+  this.selector.appendChild(this.selectedElement);
+  this.selector.appendChild(this.optionsList);
+
+  this.selectEl.parentNode.insertBefore(this.selector, this.selectEl);
+
+  this.selectedElement.innerHTML = !!this.customStruct
+    ? this.selectEl.options[this.selectEl.selectedIndex].innerHTML
+    : this.selectEl.value;
+  this.selectedElement.setAttribute(
+    'value',
+    !!this.customStruct ? this.selectEl.options[this.selectEl.selectedIndex].value : this.selectEl.value
+  );
+  if (!!this.customStruct) {
+    this.changeCallback(this.selectEl.options[this.selectEl.selectedIndex].value);
+  }
+  this.selectedElement.addEventListener('click', this.showOptions);
+  this.selectEl.addEventListener('change', this.onChange);
+  document.addEventListener('click', this.closeByClickOutside);
+};
+
+LPP.common.formSelect.prototype.closeByClickOutside = function(event) {
+  var isClickInside = this.selector.contains(event.target);
+
+  if (!isClickInside) {
+    this.hideOptions();
+  }
+};
+
+LPP.common.formSelect.prototype.clearCurrent = function() {
+  var current = this.optionsList.getElementsByClassName('current');
+  if (!!current.length) {
+    current[0].classList.remove('current');
+  }
+};
+
+LPP.common.formSelect.prototype.onChange = function() {
+  this.selectedElement.innerText = !!this.customStruct ? this.selectEl.innerHTML : this.selectEl.value;
+};
+
+LPP.common.formSelect.prototype.showOptions = function() {
+  this.optionsList.classList.add('active');
+  this.selector.classList.add('active');
+};
+
+LPP.common.formSelect.prototype.hideOptions = function() {
+  this.optionsList.classList.remove('active');
+  this.selector.classList.remove('active');
+};
+
+LPP.common.formSelect.prototype.selectOption = function(event, option) {
+  event.stopPropagation();
+  this.clearCurrent();
+  option.classList.add('current');
+
+  this.changeCallback(!!this.customStruct ? option.getAttribute('value') : event.target.getAttribute('value'));
+  this.selectedElement.innerHTML = option.innerHTML;
+  this.hideOptions();
+};
+
+LPP.common.formSelect.prototype.changeValue = function(value) {
+  this.selectedElement.innerHTML = value;
+};
+
+LPP.common.formSelect.prototype.disable = function(isDisabled) {
+  if (!LegacyBridge.getStoreConfig('geoValidation/enabled')) {
+    return;
+  }
+
+  if (this.isDesktop) {
+    this.selectedElement.innerHTML = !!this.customStruct ? this.selectEl.innerHTML : this.selectEl.value;
+    this.selector.classList.remove('disabled');
+    if (isDisabled) {
+      this.selector.classList.add('disabled');
+    }
+  }
+};
+
+if (!LPP.common) {
+  LPP.common = {};
+}
+
+LPP.common.GeoValidation = function(
+  defaultRules,
+  useDefaultRules,
+  formValidation,
+  phoneConfig,
+  preventCloseEl,
+  addinationalFields,
+  usePhoneExact
+) {
+  var that = this;
+  this.enabled = LegacyBridge.getStoreConfig('geoValidation/enabled');
+  this.commonPattern = LegacyBridge.getStoreConfig('geoValidation/commonPattern');
+  this.defaultPhone = LegacyBridge.getStoreConfig('geoValidation/defaultDialCode');
+  this.phonePattern = LegacyBridge.getStoreConfig('geoValidation/phonePattern');
+  this.postCodePattern = LegacyBridge.getStoreConfig('geoValidation/postCodePattern');
+  this.fields = formValidation;
+  this.additionalRules = {};
+  this.defaultRules = jQuery.extend(true, {}, defaultRules);
+  this.changePhoneRule = this.changePhoneRule.bind(this);
+  this.closeByClickOutside = this.closeByClickOutside.bind(this);
+  this.changeCallback = this.changeCallback.bind(this);
+  this.useDefaultRules = useDefaultRules;
+  this.preventCloseEl = preventCloseEl;
+  this.addinationalFields = addinationalFields;
+  this.usePhoneExact = usePhoneExact;
+  this.tooltipCourierText = LegacyBridge.getStoreConfig('geoValidation/tooltipCourierText');
+  this.tooltipPickupText = LegacyBridge.getStoreConfig('geoValidation/tooltipText');
+
+  if (phoneConfig) {
+    this.phoneConfig = phoneConfig;
+    if (!this.formSelect && this.phoneConfig.dialCodeEl) {
+      this.formSelect = new LPP.common.formSelect(this.phoneConfig.dialCodeEl, this.changeCallback);
+    }
+  }
+
+  if (!useDefaultRules && this.enabled) {
+    this.fields.forEach(function(ruleValidation) {
+      that.additionalRules[ruleValidation.field] = that.commonPattern;
+      that.additionalRules[ruleValidation.field].normalizer = function(value) {
+        return value.replace(/^\s+|\s+$/g, '');
+      };
+
+      if (ruleValidation.validator === 'postcode') {
+        that.additionalRules[ruleValidation.field] = Object.assign({}, that.commonPattern, that.postCodePattern);
+      }
+    });
+
+    return this;
+  }
+
+  this.fields.forEach(function(ruleValidation) {
+    that.additionalRules[ruleValidation.field] = that.defaultRules[ruleValidation.validator];
+  });
+
+  return this;
+};
+
+LPP.common.GeoValidation.prototype.additionalRules = {};
+LPP.common.GeoValidation.prototype.phoneConfig = {};
+LPP.common.GeoValidation.prototype.fields = {};
+LPP.common.GeoValidation.prototype.defaultRules = {};
+
+LPP.common.GeoValidation.prototype.getRules = function() {
+  return this.additionalRules;
+};
+
+LPP.common.GeoValidation.prototype.changeCallback = function(value) {
+  this.phoneConfig.dialCodeEl.value = value;
+  this.changePhoneRule();
+};
+
+LPP.common.GeoValidation.prototype.changePhoneRule = function() {
+  if (!this.enabled) {
+    return;
+  }
+  if (!this.preventChangeRule) {
+    this.changeRuleTo(this.validator, this.phoneConfig.dialCodeEl.value == this.defaultPhone);
+  }
+
+  if (this.phoneConfig.phoneEl.value.length) {
+    this.validator.element(this.phoneConfig.phoneElName);
+  }
+};
+
+LPP.common.GeoValidation.prototype.changeRuleTo = function(validator, isDefaultValidation) {
+  if (!this.enabled) {
+    return;
+  }
+
+  jQuery(this.phoneConfig.phoneElName).rules('remove');
+
+  if (isDefaultValidation) {
+    jQuery(this.phoneConfig.phoneElName).rules(
+      'add',
+      this.usePhoneExact ? this.defaultRules.phone_exact : this.defaultRules.phone
+    );
+  } else {
+    jQuery(this.phoneConfig.phoneElName).rules('add', this.phonePattern);
+  }
+};
+
+LPP.common.GeoValidation.prototype.checkValidation = function(validator) {
+  this.closeError();
+  this.validator = validator;
+  this.fields.forEach(function(ruleValidation) {
+    var fieldEl = document.getElementsByName(ruleValidation.field)[0];
+
+    if (fieldEl && fieldEl.value) {
+      validator.element('[name="' + ruleValidation.field + '"]');
+    }
+  });
+
+  if (this.phoneConfig && this.phoneConfig.dialCodeEl && this.phoneConfig.phoneEl) {
+    this.changePhoneRule(validator);
+
+    this.phoneConfig.dialCodeEl.onchange = function(el) {
+      this.changePhoneRule(validator);
+    }.bind(this);
+  }
+};
+
+LPP.common.GeoValidation.prototype.appendChild = function(elementsList, errorElements, appendTo) {
+  elementsList.forEach(function(elementName) {
+    errorElements[appendTo].appendChild(errorElements[elementName]);
+  });
+};
+
+LPP.common.GeoValidation.prototype.createElWithClass = function(tag, elementClass, text) {
+  var newElement = document.createElement(tag);
+
+  if (elementClass) {
+    newElement.classList.add(elementClass);
+  }
+
+  if (text) {
+    newElement.innerHTML = text;
+  }
+
+  return newElement;
+};
+
+LPP.common.GeoValidation.prototype.displayError = function() {
+  var errorElements = {
+      WrapperEl: this.createElWithClass('div', 'validation-global-error'),
+      TextWrapperEl: this.createElWithClass('div', 'validation-text-wrapper'),
+      TextEl: this.createElWithClass('span', false, LegacyBridge.getStoreConfig('geoValidation/contactText')),
+      InfoIconEl: this.createElWithClass('div', 'info-icon'),
+      CloseEl: this.createElWithClass('div', 'close-button'),
+      EmptyEl: this.createElWithClass('div', 'empty-spacing'),
+    },
+    self = this;
+
+  this.errWrapper = document.getElementById('validationInvoiceError');
+
+  if (this.errWrapper) {
+    this.errWrapper.style.display = '';
+    return;
+  }
+
+  if (!this.enabled) {
+    return;
+  }
+
+  this.appendChild(['InfoIconEl', 'TextEl'], errorElements, 'TextWrapperEl');
+  this.appendChild(['EmptyEl', 'TextWrapperEl', 'CloseEl'], errorElements, 'WrapperEl');
+  this.errWrapper = errorElements.WrapperEl;
+
+  this.errWrapper.id = 'validationInvoiceError';
+  document.body.appendChild(this.errWrapper);
+
+  errorElements.CloseEl.addEventListener(
+    'click',
+    function(event) {
+      self.closeError();
+    },
+    false
+  );
+
+  document.addEventListener('click', self.closeByClickOutside);
+};
+
+LPP.common.GeoValidation.prototype.tryDisplayError = function(errors) {
+  var hasError = false,
+    self = this;
+
+  if (!this.useDefaultRules) {
+    return;
+  }
+
+  Object.keys(errors).forEach(function(k) {
+    if (
+      (errors[k] && self.getRulesFieds().includes(k)) ||
+      (errors[k] && self.addinationalFields && self.addinationalFields.includes(k))
+    ) {
+      hasError = true;
+      return;
+    }
+  });
+
+  if (hasError) {
+    this.displayError();
+  } else {
+    this.closeError();
+  }
+};
+
+LPP.common.GeoValidation.prototype.closeByClickOutside = function(event) {
+  var isClickInside = this.errWrapper.contains(event.target);
+
+  if (
+    !isClickInside &&
+    this.preventCloseEl &&
+    this.errWrapper.style.display == '' &&
+    window.innerWidth < 768 &&
+    !event.target.matches(this.preventCloseEl + ', ' + this.preventCloseEl + ' *')
+  ) {
+    this.closeError();
+  }
+};
+
+LPP.common.GeoValidation.prototype.closeError = function() {
+  if (this.errWrapper) {
+    this.errWrapper.style.display = 'none';
+  }
+};
+
+LPP.common.GeoValidation.prototype.createTooltip = function() {
+  if (this.tooltipCreated || !this.enabled) {
+    return;
+  }
+
+  this.tooltipElement = document.getElementById('geoValidationTooltip');
+
+  if (!this.tooltipElement) {
+    return;
+  }
+
+  this.tooltipElement.classList.add('validationTooltip');
+  while (this.tooltipElement.firstChild) {
+    this.tooltipElement.removeChild(this.tooltipElement.firstChild);
+  }
+
+  this.tooltipElement.appendChild(this.createElWithClass('div', 'toolTipContent'));
+  this.tooltipEnter = this.tooltipEnter.bind(this);
+  this.tooltipLeave = this.tooltipLeave.bind(this);
+
+  this.tooltipElement.addEventListener('mouseover', this.tooltipEnter, false);
+  this.tooltipElement.addEventListener('mouseleave', this.tooltipLeave, false);
+  this.tooltipCreated = true;
+};
+
+LPP.common.GeoValidation.prototype.courierTooltip = function(isCourierTooltip) {
+  var tooltipContentWrapper = this.tooltipElement.childNodes[0];
+  tooltipContentWrapper.innerText = isCourierTooltip ? this.tooltipCourierText : this.tooltipPickupText;
+};
+
+LPP.common.GeoValidation.prototype.tooltipEnter = function() {
+  this.tooltipElement.classList.add('active');
+};
+
+LPP.common.GeoValidation.prototype.tooltipLeave = function() {
+  this.tooltipElement.classList.remove('active');
+};
+
+LPP.common.GeoValidation.prototype.getRulesFieds = function() {
+  return Object.keys(this.additionalRules);
+};
+
+if (global.vkontakte.isEnabled) {
+  window.addEventListener('DOMContentLoaded', function() {
+    var vkLoginButton = document.getElementById('vkontakteLoginButton');
+
+    if (vkLoginButton) {
+      vkLoginButton.addEventListener('click', function(event) {
+        event.preventDefault();
+        window.open(
+          'https://oauth.vk.com/authorize?client_id=' +
+            global.vkontakte.appId +
+            '&display=popup&redirect_uri=' +
+            global.vkontakte.redirectUrl +
+            '&scope=email&response_type=code&v=5.67',
+          'VKontakte login popup',
+          'height=200,width=350'
+        );
+      });
+    }
+  });
+}
+
+var baseRequest = {
+    apiVersion: 2,
+    apiVersionMinor: 0,
+  },
+  cardPaymentMethod = {
+    type: 'CARD',
+    parameters: {
+      allowedAuthMethods: LPP.common.payments.googlepay.allowedCardAuthMethods,
+      allowedCardNetworks: LPP.common.payments.googlepay.allowedCardNetworks,
+    },
+    tokenizationSpecification: {
+      type: 'PAYMENT_GATEWAY',
+      parameters: {
+        gateway: 'payu',
+        gatewayMerchantId: LPP.common.payments.googlepay.posId,
+      },
+    },
+  },
+  paymentsClient = null;
+
+function getGooglePaymentDataRequest() {
+  var paymentDataRequest = Object.assign({}, baseRequest);
+  paymentDataRequest.allowedPaymentMethods = [cardPaymentMethod];
+  paymentDataRequest.transactionInfo = {};
+  paymentDataRequest.merchantInfo = {
+    merchantId: LPP.common.payments.googlepay.merchantId,
+    merchantName: LPP.common.payments.googlepay.merchantName,
+  };
+  return paymentDataRequest;
+}
+
+function getGooglePaymentsClient() {
+  if (paymentsClient === null) {
+    paymentsClient = new google.payments.api.PaymentsClient({ environment: LPP.common.payments.googlepay.environment });
+  }
+  return paymentsClient;
+}
+
+function getGoogleTransactionInfo() {
+  return LPP.common.payments.googlepay.getPriceFromQuote().then(function(response) {
+    return {
+      countryCode: LegacyBridge.getStoreConfig('general/country/code').toUpperCase(),
+      currencyCode: response.currencyCode,
+      totalPriceStatus: 'FINAL',
+      totalPrice: response.totalPrice,
+    };
+  });
+}
+
+LPP.common.payments.googlepay.sendRequest = function(options) {
+  options.beforeRequestCallback && options.beforeRequestCallback();
+
+  var paymentDataRequest = getGooglePaymentDataRequest();
+
+  getGoogleTransactionInfo()
+    .then(function(response) {
+      paymentDataRequest.transactionInfo = response;
+      return paymentDataRequest;
+    })
+    .then(function(paymentDataRequest) {
+      getGooglePaymentsClient()
+        .loadPaymentData(paymentDataRequest)
+        .then(function(paymentData) {
+          LPP.common.payments.googlepay.submitCheckoutAsAjax(
+            paymentData.paymentMethodData.tokenizationData.token,
+            options.form
+          );
+        })
+        .catch(function() {
+          options.afterRequestCallback && options.afterRequestCallback();
+        });
+    });
+};
+
+LPP.common.payments.googlepay.submitCheckoutAsAjax = function(token, form) {
+  var data = jQuery(form).serializeArray();
+  data.push({ name: 'token', value: token });
+
+  var fetch = new Promise(function(resolve, reject) {
+    jQuery
+      .ajax({
+        url: LPP.common.checkout.order.submit,
+        data: jQuery.param(data),
+        method: 'POST',
+      })
+      .done(function(response) {
+        resolve(response);
+      })
+      .fail(function(error) {
+        reject(error);
+      });
+  });
+
+  return fetch
+    .then(function(response) {
+      window.location.href = response.url;
+    })
+    .catch(function(err) {
+      window.location.href = LPP.common.checkout.order.error;
+    });
+};
+
+LPP.common.payments.googlepay.getPriceFromQuote = function() {
+  return fetch(LPP.common.baseUrl + 'checkout/order/summary', {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+  })
+    .then(function(response) {
+      return response.json();
+    })
+    .then(function(response) {
+      return {
+        totalPrice: response.totalPrice,
+        currencyCode: response.currencyCode,
+      };
+    })
+    .catch(function() {
+      window.location = LPP.common.checkout.order.error;
+    });
+};
+
+LPP.common.payments.googlepay.isPaymentChecked = function(selector) {
+  var element = document.querySelector(selector);
+
+  if (!element) {
+    return false;
+  }
+  return element.checked;
+};
+
+var lppShared = lppShared || {};
+
+lppShared.newsletter = {
+  cookieName: 'newsletterCookie=',
+  setCookie: function(value) {
+    var day = new Date(),
+      expires = 'expires=';
+
+    day.setTime(day.getTime() + 30 * 24 * 60 * 60 * 1000);
+    expires += day.toUTCString();
+
+    document.cookie = this.cookieName + value + '; ' + expires + '; path=/';
+  },
+  getCookieValue: function() {
+    var cookies = document.cookie.split(';'),
+      cookiesNumber = cookies.length,
+      i,
+      cookie;
+
+    for (i = 0; i < cookiesNumber; i++) {
+      cookie = cookies[i].trim();
+
+      if (cookie.indexOf(this.cookieName) == 0) {
+        return cookie.substring(this.cookieName.length);
+      }
+    }
+    return '';
+  },
+  checkCookie: function(force) {
+    var currentCookieValue = this.getCookieValue(),
+      $popup;
+    if (/newsletter|subscri|checkout/.exec(document.location.href)) {
+      return false;
+    }
+    var isLogged = LPP.isLogged || undefined,
+      isSubscribed = LPP.isSubscribed || undefined;
+    if (isLogged && isSubscribed) {
+      this.setCookie(3);
+      return;
+    }
+
+    if (currentCookieValue === '' && !force) {
+      this.setCookie(1);
+    } else if (parseInt(currentCookieValue) === 1 && !force) {
+      this.setCookie(parseInt(++currentCookieValue));
+    } else if (parseInt(currentCookieValue) === 2 || force) {
+      $popup = jQuery('.newsletter-popup');
+      $popup.show();
+
+      this.bindPopupActions($popup);
+      this.completeSubscriptionPlace($popup);
+      this.gtmNewsletterPopupShown();
+
+      if (!force) {
+        this.setCookie(3);
+      }
+    }
+  },
+  gtmNewsletterPopupShown: function() {
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push({ event: 'newsletter', action: 'view', label: 'popup' });
+  },
+  completeSubscriptionPlace: function($popup) {
+    var placeInput = $popup.find('.ai-subscription-place');
+    if (placeInput.length) {
+      placeInput.val('popup');
+    }
+  },
+  bindPopupActions: function($popup) {
+    var cmsBlock = jQuery('.popup-cms-block-nl'),
+      closePopup = function() {
+        $popup.hide();
+      };
+
+    $popup.find('.close').click(function() {
+      closePopup();
+    });
+
+    $popup.click(function(event) {
+      if (event.target == this) {
+        closePopup();
+      }
+    });
+
+    cmsBlock.click(function(event) {
+      if (event.target == this) {
+        closePopup();
+      }
+    });
+  },
+};
