@@ -1,0 +1,51 @@
+.wrapper {
+    width: 50vw;
+    margin: 0 auto;
+    height: 100%;
+}
+
+.btn {
+    width: 180px;
+    height: 30px;
+    margin-top: 10px;
+    background-color: black;
+    color: white;
+    border: none;
+}
+
+.input {
+    width: 180px;
+    height: 30px;
+    padding-left: 10px;
+    border-radius: 0px;
+    border-width: 1px;
+    box-sizing: border-box;
+}
+
+
+.calc {
+    display: flex;
+    flex-direction: column;
+    margin-top: 100px;
+    padding: 0px;
+}
+
+.calc__name {
+    font-size: 20px;
+    margin-bottom: 25px;
+
+}
+
+.result {
+    margin-top: 10px;
+}
+
+:focus::placeholder {
+    color: transparent;
+}
+
+.wrapper {
+    width: 50vw;
+    margin: 0 auto;
+    height: 100%;
+}
