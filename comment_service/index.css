@@ -1,0 +1,54 @@
+.comment_service {
+    margin-left: 1vw;
+}
+
+.comment_service_content {
+    display: flex;
+    flex-direction: row;
+}
+
+.form {
+    display: flex;
+    flex-direction: column;
+}
+
+.chat {
+    display: flex;
+    flex-direction: column;
+    margin-left: 8vw;
+}
+
+.btn {
+    width: 170px;
+    height: 40px;
+    background-color: royalblue;
+    color: white;
+    border: none;
+    font-size: 14px;
+}
+
+.input {
+    margin-bottom: 30px;
+    height: 25px;
+    border: dashed royalblue;
+}
+
+input:focus {
+    outline: none;
+    border: dashed royalblue;
+}
+
+.input_textarea {
+    margin-bottom: 20px;
+    height: 150px;
+    resize: none;
+    overflow: auto;
+    border: dashed royalblue;
+}
+
+.input_textarea:focus {
+    resize: none;
+    overflow: auto;
+    outline: none;
+    border: dashed royalblue;
+}
