@@ -25,19 +25,12 @@ function applyDiscount() {
             // console.log("Старая цена:", price.textContent);
             price.textContent = (Number(price.textContent.replace(" руб", "")) *  0.8).toFixed(2) + " руб";
             discountSum += Number(price.textContent.replace(" руб", ""));
-            console.log("Цена со скидкой 20%:", price.textContent);
+            // console.log("Цена со скидкой 20%:", price.textContent);
         }
-        console.log("Общаяя сумма со скидкой 20%:", discountSum.toFixed(2));
+        // console.log("Общаяя сумма со скидкой 20%:", discountSum.toFixed(2));
         document.querySelector('.result__info_value').textContent = discountSum.toFixed(2) + " руб";
         discountClicked = true;
     } else {
         console.log("Скидка уже активирована!")
     }       
 }
-
-
-
-// str1 = "6999.00 руб"
-// console.log(str1)
-// str1 = Number(str1.replace(" руб", "")).toFixed(2);
-// console.log(str1)
