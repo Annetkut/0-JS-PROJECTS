@@ -3,14 +3,16 @@ const nameInput = document.getElementById("name");
 const avatarInput = document.getElementById("avatar");
 const commentInput = document.getElementById("comment");
 // const btn = document.getElementsByClassName("btn");
-const result1 = document.getElementById("result1");
-const result2 = document.getElementById("result2");
-const result3 = document.getElementById("result3");
+const result1 = document.querySelector('.chat_img');
+const result2 = document.querySelector('.chat_username');
+const result3 = document.querySelector('.chat_message');
 
 function handleLowerUpperCase(text) {
-    // split the input string into an array of words
-    const words = text.toLowerCase().split(' ');
-    // loop through each word in the array
+    // переписывает в нижний регистр и разделяет строку на слова, создавая массив
+    // const words = text.toLowerCase().split(' ');
+    text = text.toLowerCase();
+    const words = text.split(' ');
+    // прохожу цикл по всем эллементам (словам) в массиве words
     for (let i = 0; i < words.length; i++) {
         // capitalize the first letter of the current word
         words[i] = words[i][0].toUpperCase() + words[i].slice(1);
@@ -30,8 +32,6 @@ btn.onclick = viewAll;
 
 
 document.getElementById("btn").onclick = viewAll;
-
-
 
 
 
