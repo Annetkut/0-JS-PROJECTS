@@ -1,10 +1,15 @@
 "use strict";
+
 const nameInput = document.getElementById("name");
+//ссылка на картинку для теста https://images.theconversation.com/files/443350/original/file-20220131-15-1ndq1m6.jpg?ixlib=rb-1.1.0&q=45&auto=format&w=1200&h=900.0&fit=crop
 const avatarInput = document.getElementById("avatar");
 const commentInput = document.getElementById("comment");
+const my_form = document.getElementById("my_form");
+
 const resultImage = document.querySelector('.chat_img');
 const resultUser = document.querySelector('.chat_username');
 const resultMessage = document.querySelector('.chat_message');
+
 
 function handleLowerUpperCase(text) {
     // переписывает в нижний регистр и разделяет строку на слова, создавая массив
@@ -13,55 +18,43 @@ function handleLowerUpperCase(text) {
     text = text.replace(/\s+/g, " ");
     const words = text.split(' '); // words = ["фамилия", "имя", "очество"]
 
-    if (words.length == 3) {
-        let fio = "";
+    if (words.length == 1) {
+        return words[0].replace(words[0][0], words[0][0].toUpperCase());
+    } else if (words.length == 2) {
+        const new_family_name = words[0].replace(words[0][0], words[0][0].toUpperCase());
+        const new_name = words[1].replace(words[1][0], words[1][0].toUpperCase());
+        return new_family_name + " " + new_name
+    } else if (words.length == 3) {
         const new_family_name = words[0].replace(words[0][0], words[0][0].toUpperCase());
         const new_name = words[1].replace(words[1][0], words[1][0].toUpperCase());
         const otschestvo = words[2].replace(words[2][0], words[2][0].toUpperCase());
-        fio = fio + new_family_name + " " + new_name + " " + otschestvo;
-        return fio;
+        return new_family_name + " " + new_name + " " + otschestvo;
     } else {
         return "Error!";
     }
-
 }
 
-function checkSpam(text){
-    text = text.replace(/viagra/ig, "***");
-    text = text.replace(/XXX/ig, "***");
-    return text;
-}
+const checkSpam = (text) => {
+    return text.replace(/viagra|XXX/ig, "***");
+};
 
-function showAvatarImage(image_url){
-    if (image_url.includes(".png")) {
-        image_url = image_url.split(".png")[0] + ".png";
-    } else if (image_url.includes(".jpg")) {
-        image_url = image_url.split(".jpg")[0] + ".jpg";
-    } else if (image_url.includes(".jpeg")) {
-        image_url = image_url.split(".jpeg")[0] + ".jpeg";
-    } else if (image_url.includes(".gif")) {
-        image_url = image_url.split(".gif")[0] + ".gif";
-    } else if (image_url.includes(".webp")) {
-        image_url = image_url.split(".webp")[0] + ".webp";
-    } else if (image_url.includes(".bmp")) {
-        image_url = image_url.split(".bmp")[0] + ".bmp";
-    } else if (image_url.includes(".svg")) {
-        image_url = image_url.split(".svg")[0] + ".svg";
-    }
-    return "<img src=\"" + image_url + "\" class=\"image_itself\">";
-}
 
 function viewAll(event) {
     event.preventDefault(); // prevent form submission предотвращать отправление формы‚
+    // поменять регистр фио пользователя
     let convertedUserName = handleLowerUpperCase(nameInput.value);
     if (convertedUserName === "Error!") {
-        alert("Введите ровно 3 слова: Фамилию, имя и очество!");
+        alert("Введите фамилию, имя и очество!");
     } else {
+        // вставить картинку по ссылке пользователя
+        resultImage.style.backgroundImage = `url(${avatarInput.value})`;
+        // вставить поправленное фио пользователя в нужный htmpl тэг
         resultUser.innerHTML = convertedUserName;
-        resultImage.innerHTML = showAvatarImage(avatarInput.value);
+        // зацензурить текст сообщения пользователя и вставить в нужный htmpl тэг
         resultMessage.innerHTML = checkSpam(commentInput.value);
     }
+    my_form.reset();
 }
-btn.onclick = viewAll;
 
-document.getElementById("btn").onclick = viewAll;
+// document.getElementById("btn").onclick = viewAll;
+document.getElementById('btn').addEventListener('click', viewAll);
