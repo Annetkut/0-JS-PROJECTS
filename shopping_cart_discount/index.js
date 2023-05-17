@@ -12,7 +12,7 @@ let startSum = 0;
 function calcStartSum() {
     for (let price of getPrices) {
         startSum += Number(price.textContent);
-        price.textContent += " руб"  
+        price.textContent += " руб"
     }
     // console.log("Цена без скидки:", startSum);
     document.querySelector('.result__info_value').textContent = startSum.toFixed(2) + " руб";
@@ -20,10 +20,10 @@ function calcStartSum() {
 calcStartSum();
 
 function applyDiscount() {
-    if (discountClicked == false){
+    if (discountClicked == false) {
         for (let price of getPrices) {
             // console.log("Старая цена:", price.textContent);
-            price.textContent = (Number(price.textContent.replace(" руб", "")) *  0.8).toFixed(2) + " руб";
+            price.textContent = (Number(price.textContent.replace(" руб", "")) * 0.8).toFixed(2) + " руб";
             discountSum += Number(price.textContent.replace(" руб", ""));
             // console.log("Цена со скидкой 20%:", price.textContent);
         }
@@ -32,5 +32,5 @@ function applyDiscount() {
         discountClicked = true;
     } else {
         console.log("Скидка уже активирована!")
-    }       
+    }
 }
