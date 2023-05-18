@@ -18,6 +18,25 @@
     margin-left: 8vw;
 }
 
+.chat_top{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5vh;
+}
+.chat_top_user{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+.chat_username{
+    margin-left: 12px;
+}
+
+.chat_date {}
+
 .btn {
     width: 170px;
     height: 40px;
@@ -56,8 +75,12 @@ input:focus {
 .chat_img {
     width: 50px;
     height: 75px;
-    border: 1px solid black;
     background-position: center;
     background-size: cover;
 }
 
+
+.chat_message {
+    width: 50vw;
+    border-bottom: dashed royalblue;
+}
