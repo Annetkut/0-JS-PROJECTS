@@ -10,14 +10,6 @@ let month = date.toLocaleString('default', { month: 'long' }).replace("ь","я")
 let hours = date.getHours();
 let minutes = date.getMinutes();
 
-let dayWord;
-if (day === 1 || day === 21 || day === 31) {
-  dayWord = "день";
-} else if (day === 2 || day === 3 || day === 4 || day === 22 || day === 23 || day === 24) {
-  dayWord = "дня";
-} else {
-  dayWord = "дней";
-}
 let hoursWord;
 if (hours === 1 || hours === 21) {
   hoursWord = "час";
@@ -26,6 +18,7 @@ if (hours === 1 || hours === 21) {
 } else {
   hoursWord = "часов";
 }
+
 let minutesWord;
 if (minutes === 1 || minutes === 21 || minutes === 31 || minutes === 41 || minutes === 51) {
   minutesWord = "минута";
