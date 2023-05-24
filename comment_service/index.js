@@ -7,7 +7,7 @@ const my_form = document.getElementById("my_form");
 const resultImage = document.querySelector(".chat_img");
 const resultUser = document.querySelector(".chat_username");
 const resultMessage = document.querySelector(".chat_message");
-const resultTime = document.querySelector(".chat_message");
+const resultTime = document.querySelector(".chat_date");
 
 // Приводим текст к нижнему регистру и заменяем множественные пробелы на один
 function handleLowerUpperCase(text) {
@@ -53,6 +53,41 @@ function handleLowerUpperCase(text) {
   }
 }
 
+// Вывод даты в формате Wed, 17 May 2023 at 20:08:41
+function formatCurrentDate() {
+  // Создание объекта даты
+  const currentDate = new Date();
+
+  // Получение дня недели в виде строки
+  const weekDay = currentDate.toLocaleString("en-us", {
+    weekday: "short",
+  });
+
+  // Получение месяца в виде строки
+  const month = currentDate.toLocaleString("en-us", {
+    month: "short",
+  });
+
+  // Получение даты в виде числа
+  const date = currentDate.getDate();
+
+  // Получение года в виде числа
+  const year = currentDate.getFullYear();
+
+  // Получение часа в виде числа
+  const hour = currentDate.getHours();
+
+  // Получение минут в виде числа
+  const minutes = currentDate.getMinutes();
+
+  // Получение секунд в виде числа
+  const seconds = currentDate.getSeconds();
+
+  // Вывод даты в консоли в нужном формате
+  const formatDate = `${weekDay}, ${date} ${month} ${year} at ${hour}:${minutes}:${seconds}`;
+  return formatDate;
+}
+
 // Функция checkSpam принимает текст и заменяет в нем слова "viagra" и "XXX" на звездочки
 // Флаг "ig" в регулярном выражении указывает на регистронезависимый поиск
 const checkSpam = (text) => {
@@ -69,9 +104,10 @@ function viewAll(event) {
   } else {
     // установить изображение пользователя
     resultImage.style.backgroundImage = `url(${avatarInput.value})`;
-    // установить изображение пользователя
     // установить измененное имя пользователя в соответствующий тэг
     resultUser.innerHTML = convertedUserName;
+     // установить дату отправки сообщения
+    resultTime.innerHTML = formatCurrentDate();
     // заменить неприемлемые слова в сообщении пользователя и установить текст в соответствующий тэг
     resultMessage.innerHTML = checkSpam(commentInput.value);
   }
