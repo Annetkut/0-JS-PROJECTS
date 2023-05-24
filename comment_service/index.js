@@ -8,6 +8,18 @@ const resultImage = document.querySelector(".chat_img");
 const resultUser = document.querySelector(".chat_username");
 const resultMessage = document.querySelector(".chat_message");
 const resultTime = document.querySelector(".chat_date");
+const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+
+
+checkboxes.forEach(checkBox => {
+  checkBox.addEventListener('change', event => {
+    checkboxes.forEach(otherCheckBox => {
+      if (checkBox !== otherCheckBox) {
+        otherCheckBox.checked = false; // снимаем отметку с другого чекбокса
+      }
+    });
+  });
+}); 
 
 // Приводим текст к нижнему регистру и заменяем множественные пробелы на один
 function handleLowerUpperCase(text) {
@@ -75,13 +87,14 @@ function formatCurrentDate() {
   const year = currentDate.getFullYear();
 
   // Получение часа в виде числа
-  const hour = currentDate.getHours();
+  const hour = String(currentDate.getHours()).padStart(2, '0');
 
   // Получение минут в виде числа
-  const minutes = currentDate.getMinutes();
+  const minutes = String(currentDate.getMinutes()).padStart(2, '0');
 
   // Получение секунд в виде числа
-  const seconds = currentDate.getSeconds();
+  const seconds = String(currentDate.getSeconds()).padStart(2, '0');
+
 
   // Вывод даты в консоли в нужном формате
   const formatDate = `${weekDay}, ${date} ${month} ${year} at ${hour}:${minutes}:${seconds}`;

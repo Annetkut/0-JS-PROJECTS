@@ -82,3 +82,18 @@ input:focus {
   width: 50vw;
   border-bottom: dashed royalblue;
 }
+.checkbox {
+  display: flex;
+  flex-direction: row;
+  margin-bottom: 20px;
+}
+
+.checkbox_h {
+  margin-right: 20px;
+  
+}
+
+.checkbox_yes {
+  margin-right: 15px;
+  
+}
