@@ -11,8 +11,11 @@ const resultTime = document.querySelector(".chat_date");
 const checkboxes = document.querySelectorAll('input[type="checkbox"]');
 
 
+let selectedСheckBox = '';
 checkboxes.forEach(checkBox => {
   checkBox.addEventListener('change', event => {
+    selectedСheckBox = checkBox.value
+    console.log(selectedСheckBox)
     checkboxes.forEach(otherCheckBox => {
       if (checkBox !== otherCheckBox) {
         otherCheckBox.checked = false; // снимаем отметку с другого чекбокса
@@ -20,6 +23,7 @@ checkboxes.forEach(checkBox => {
     });
   });
 }); 
+
 
 // Приводим текст к нижнему регистру и заменяем множественные пробелы на один
 function handleLowerUpperCase(text) {
