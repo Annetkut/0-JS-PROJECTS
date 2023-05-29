@@ -5,6 +5,7 @@ const avatarInput = document.getElementById("avatar");
 const commentInput = document.getElementById("comment");
 const my_form = document.getElementById("my_form");
 const resultImage = document.querySelector(".chat_img");
+const listMassages = document.querySelector(".list-massages");
 const resultUser = document.querySelector(".chat_username");
 const resultMessage = document.querySelector(".chat_message");
 const resultTime = document.querySelector(".chat_date");
@@ -30,7 +31,7 @@ function handleLowerUpperCase(text) {
   text = text.toLowerCase().replace(/\s+/g, " ");
 
   // Если строка пустая, то вместо имени выводим "username"
-  if (!text.trim()) {
+  if (!text.trim()|| selectedСheckBox == '0') {
     const serverName = "username";
     return serverName;
   } else {
