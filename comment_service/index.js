@@ -120,19 +120,36 @@ function viewAll(event) {
   if (convertedUserName === "Error!") {
     alert("Имя пользователя не может содержать более 3 слов!");
   } else {
+    // создаем элемент разметки, которую потом удочерим 
+    const mess = document.createElement('div'); 
+    mess.className = 'mess' 
+    mess.innerHTML = ` 
+        <div class="chat_top"> 
+            <div class="chat_top_user"> 
+            <div class="chat_img" style="background-image:url(${avatarInput.value})"></div> 
+              <div class="chat_username">${convertedUserName}</div> 
+            </div> 
+            <div class="chat_date">${formatCurrentDate()}</div> 
+        </div> 
+        <div class="chat_message">${checkSpam(commentInput.value)}</div> 
+    ` 
+    listMassages.prepend(mess); 
     // установить изображение пользователя
-    resultImage.style.backgroundImage = `url(${avatarInput.value})`;
+    //resultImage.style.backgroundImage = `url(${avatarInput.value})`;
     // установить измененное имя пользователя в соответствующий тэг
-    resultUser.innerHTML = convertedUserName;
+    //resultUser.innerHTML = convertedUserName;
      // установить дату отправки сообщения
-    resultTime.innerHTML = formatCurrentDate();
+    //resultTime.innerHTML = formatCurrentDate();
     // заменить неприемлемые слова в сообщении пользователя и установить текст в соответствующий тэг
-    resultMessage.innerHTML = checkSpam(commentInput.value);
+    //resultMessage.innerHTML = checkSpam(commentInput.value);
   }
 
-  // сбросить форму
+    // сбросить форму
   my_form.reset();
-}
+
+  }
+
+
 
 // document.getElementById("btn").onclick = viewAll;
 document.getElementById("btn").addEventListener("click", viewAll);
