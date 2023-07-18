@@ -122,11 +122,30 @@ function viewAll(event) {
   } else {
     // создаем элемент разметки, которую потом удочерим 
     const mess = document.createElement('div'); 
-    mess.className = 'mess' 
+    mess.className = 'mess';
+    // создаем пустую переменную куда будем сохранять либо ссылку пользователя на аватар, либо путь в файловой системе к одной из картинок в папке img
+    let current_image;
+    // проверяем вставил ли пользователь ссылку на аватар
+    if (avatarInput.value) {
+      // если да, то сохраняем в переменную эту ссылку
+      current_image = avatarInput.value;
+    } else {
+      // если нет ссылки, то создаем массив с путями к стандартным картинкам 
+      let standard_images = ['./img/1.jpg','./img/2.jpg','./img/3.jpg','./img/4.jpg','./img/5.jpg','./img/6.jpg','./img/7.jpg','./img/8.jpg','./img/9.jpg'];
+      // Generate a random
+      let randomIndex = Math.floor(Math.random() * standard_images.length);
+      current_image = standard_images[randomIndex];
+    }
+    
+    // Check if current_image is a local file path or a URL
+    const isLocalPath = current_image.startsWith('./img/'); // -> True or False
+    const backgroundImage = isLocalPath ? `url(${current_image})` : `url(${avatarInput.value})`;
+
+    //<div class="chat_img" style="background-image:url(${current_image})"></div>
     mess.innerHTML = ` 
         <div class="chat_top"> 
-            <div class="chat_top_user"> 
-            <div class="chat_img" style="background-image:url(${avatarInput.value})"></div> 
+            <div class="chat_top_user">  
+            <div class="chat_img" style="background-image:${backgroundImage}"></div>
               <div class="chat_username">${convertedUserName}</div> 
             </div> 
             <div class="chat_date">${formatCurrentDate()}</div> 
