@@ -44,6 +44,8 @@ const filmmakers = [{
 
 const list = document.querySelector('.list');
 
+const topFilmsList = [];
+
 /*filmmakers.forEach(function (filmmaker) {
     console.log(filmmaker);
 });*/
@@ -56,6 +58,8 @@ filmmakers.forEach ((item) => {
     <p>${top_rated_film}</p>
     `;
 const div = document.createElement('div');
-
-    console.log(name);
+div.insertAdjacentHTML('beforeend', template);
+list.appendChild(div);
+topFilmsList.push(top_rated_film)
 });
+console.log(topFilmsList);
