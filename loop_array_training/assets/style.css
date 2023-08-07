@@ -1,0 +1,9 @@
+ul {
+    list-style: none;
+    padding-left: 0;
+    /* Опционально, чтобы убрать внутренний отступ у списка */
+}
+
+p {
+    font-weight: bold;
+}
