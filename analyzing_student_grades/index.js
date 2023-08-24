@@ -40,14 +40,13 @@ const minGrade = Math.min(...grades);
 console.log(minGrade);
 
 //5. Посчитайте и выведите количество студентов, получивших положительную оценку (балл выше или равен 60). Используйте метод массива, который фильтрует оценки и оставляет только те, которые соответствуют заданному условию. Затем посчитайте количество оставшихся оценок и выведите результат.
-const filterGrades = grades.filter(el=>el >= 60);
-console.log("Number of students with positive grades:", filterGrades.length);
-console.log("Filtered Grades:", filterGrades);
-console.log("Number of remaining grades:", grades.length - filterGrades.length);
+const positiveGrades = grades.filter((el)=>el >= 60);
+console.log("Number of students with positive grades:", positiveGrades.length);
+console.log("Filtered Grades:", positiveGrades);
 
 //6. Посчитайте и выведите количество студентов, получивших отрицательную оценку (балл ниже 60). Используйте аналогичный подход, как в предыдущем шаге.
-const filterBadGrades = grades.filter(el=>el < 60).length;
-console.log("Number of negative grades:", filterBadGrades);
+const negativeGrades = grades.length - positiveGrades.length;
+console.log("Number of negative grades:", negativeGrades);
 
 /*7. Преобразуйте числовые оценки в формат буквенных оценок A/B/C/D/E, используя следующие правила:
     - Если оценка находится в диапазоне от 80 до 100, преобразуйте её в "A"
